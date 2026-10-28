@@ -1,0 +1,25 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Large model checkpoints & datasets (excluded from Git; keep small stats/configs)
+*.pth
+*.pt
+*.safetensors
+*.bin
+*.onnx
+*.deb
+weights/
+checkpoints/
+outputs/
+datasets/
+eval_runs/
+wandb/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
