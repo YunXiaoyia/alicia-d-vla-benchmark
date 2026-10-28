@@ -102,8 +102,16 @@ alicia-d-vla-benchmark/
 │   ├── config_alicia_d_follower.py            # 串口、双摄分辨率及安全限幅配置类
 │   └── __init__.py
 ├── policies/
-│   ├── lerobot_adapters/
-│   │   └── merge_pi05_lora.py                 # π0.5 (4.14B) LoRA 权重合并与归一化处理器打包脚本
+│   ├── lerobot_adapters/                      # ACT / SmolVLA / π0.5 训练配方与适配组件
+│   │   ├── train_pi05_a800_full.sh            # π0.5 (4.14B) A800 30k 全参数微调生产启动脚本
+│   │   ├── train_pi05_4090_lora.sh            # π0.5 (4.14B) RTX 4090 单卡 PEFT LoRA 微调脚本
+│   │   ├── train_smolvla_4090.sh              # SmolVLA (0.45B) RTX 4090 30k (batch_size=64) 训练脚本
+│   │   ├── train_act_4090.sh                  # ACT (80M) RTX 4090 50k (chunk=100) 从头训练脚本
+│   │   ├── merge_pi05_lora.py                 # π0.5 LoRA 权重合并与归一化处理器打包工具
+│   │   ├── temporal_ensembler.py              # ACTTemporalEnsembler 独立时序指数加权平滑器
+│   │   ├── rtc_processor.py                   # π0.5 实时分块 (RTC) 前缀引导处理器
+│   │   ├── camera_mapper.py                   # 跨模型视觉观测键名自适应映射模块
+│   │   └── configs/                           # 各模型训练参数配置 (JSON)
 │   └── turbovla_alicia/
 │       ├── train_wipes.py                     # 支持 action_queries [12->30] 线性插值热启动的微调脚本
 │       ├── wipes_dataset.py                   # Alicia-D 双摄 MP4 + Parquet 数据集加载与 8 维状态补零对齐
