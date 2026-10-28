@@ -18,7 +18,7 @@
 | **$\pi_{0.5}$ (Full 20k)** | VLM + Action Expert Flow Matching | **4.14 B** | PaliGemma-3B + Gemma-300M | 0.389° | 17.45 | 551.3 ms (1.8 chunks/s) |
 | **ACT (50k)** | CVAE Encoder + Transformer Decoder | **0.08 B** | ResNet-18 (ImageNet) | 1.209° | 14.12 | 22.6 ms (44.2 chunks/s) |
 
-> 📌 **简历要点速查索引**：面试官或开发者可直接查看 [`docs/resume_alignment.md`](docs/resume_alignment.md)，其中将简历中的每一条技术描述精确映射到了本仓库的源码文件、函数行号与实验图表。
+> 📌 **技术要点速查索引**：可直接查看 [`docs/technical_mapping.md`](docs/technical_mapping.md)，其中将各项具身技术方案精确映射到了本仓库的源码文件、函数行号与实验图表。
 
 ---
 
@@ -90,7 +90,7 @@
 alicia-d-vla-benchmark/
 ├── README.md                                  # 项目主页：真机闭环动图、跨范式定量对比与消融实验分析
 ├── docs/
-│   ├── resume_alignment.md                    # 简历技术要点与代码文件/行号/实验证据一一对应索引
+│   ├── technical_mapping.md                   # 技术方案与代码文件/行号/实验证据对应索引
 │   ├── train_wipes_a_warmstart.log            # TurboVLA LIBERO 40k 热启动微调 20,000 steps 完整日志
 │   └── train_wipes_b_scratch.log              # TurboVLA 从头训练 20,000 steps 完整对照日志
 ├── assets/
