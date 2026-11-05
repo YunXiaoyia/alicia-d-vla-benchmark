@@ -23,3 +23,12 @@ wandb/
 Thumbs.db
 .vscode/
 .idea/
+
+# Runtime logs, handoff notes & excluded StarVLA experiments
+scripts/logs/
+*.npz
+*starvla*
+*STARVLA*
+TURBOVLA_HANDOFF.md
+assets/benchmarks/benchmark_summary.json
+scripts/run_all_frozen_queue_4090.sh

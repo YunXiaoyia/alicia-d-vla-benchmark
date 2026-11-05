@@ -39,7 +39,12 @@ def parse_args():
     parser.add_argument("--vla_feature_enhancer_layers", type=int, default=6)
     parser.add_argument("--enhancer_inner_dim", type=int, default=1024)
     parser.add_argument("--expected_image_size", type=int, default=256)
-    parser.add_argument("--freeze_vision", action="store_true")
+    parser.add_argument("--freeze_vision", action="store_true", help="Freeze DINOv3 vision backbone.")
+    parser.add_argument(
+        "--keep_real_dinov3",
+        action="store_true",
+        help="When loading --pretrained_ckpt (e.g. LIBERO), keep original real-world DINOv3 backbone weights.",
+    )
     parser.set_defaults(freeze_text_encoder=True)
     parser.add_argument("--freeze_text_encoder", dest="freeze_text_encoder", action="store_true")
     parser.add_argument("--train_text_encoder", dest="freeze_text_encoder", action="store_false")
@@ -98,15 +103,29 @@ def _use_weight_decay(name: str, param: torch.Tensor) -> bool:
     return True
 
 
-def load_and_interpolate_checkpoint(model: nn.Module, ckpt_path: str, chunk_size: int):
-    print(f"[Init] Loading pretrained checkpoint from: {ckpt_path}")
+def load_and_interpolate_checkpoint(
+    model: nn.Module, ckpt_path: str, chunk_size: int, keep_real_dinov3: bool = False
+):
+    print(f"[Init] Loading pretrained checkpoint from: {ckpt_path} (keep_real_dinov3={keep_real_dinov3})")
     ckpt = torch.load(ckpt_path, map_location="cpu")
-    sd = ckpt.get("ema_model_state_dict", ckpt.get("model_state_dict", ckpt))
+    sd = ckpt.get("ema_model_state_dict", ckpt.get("model_state_dict", ckpt.get("model", ckpt)))
 
     cleaned_sd = {}
+    skipped_dino = 0
     for k, v in sd.items():
         if k.startswith("module."):
             k = k[7:]
+        # Map GroundingDINO keys if a raw GroundingDINO checkpoint is provided
+        if k.startswith("transformer.encoder.fusion_layers."):
+            k = "vision_language_interaction.fusion_layers." + k[len("transformer.encoder.fusion_layers.") :]
+        elif k.startswith("transformer.encoder.text_layers."):
+            k = "vision_language_interaction.text_layers." + k[len("transformer.encoder.text_layers.") :]
+        elif k.startswith("feat_map."):
+            k = "text_encoder.text_projection." + k[len("feat_map.") :]
+
+        if keep_real_dinov3 and k.startswith("vision_encoder.backbone."):
+            skipped_dino += 1
+            continue
         cleaned_sd[k] = v
 
     q_key = "action_head.decoder.action_queries.weight"
@@ -117,7 +136,10 @@ def load_and_interpolate_checkpoint(model: nn.Module, ckpt_path: str, chunk_size
         print(f"[Init] Linearly interpolated {q_key}: {old_q.shape} -> {new_q.shape}")
 
     missing, unexpected = model.load_state_dict(cleaned_sd, strict=False)
-    print(f"[Init] Pretrained checkpoint loaded. Missing={len(missing)}, Unexpected={len(unexpected)}")
+    print(
+        f"[Init] Pretrained checkpoint loaded. Mapped={len(cleaned_sd)}, "
+        f"SkippedDINO={skipped_dino}, Missing={len(missing)}, Unexpected={len(unexpected)}"
+    )
 
 
 def main():
@@ -165,7 +187,9 @@ def main():
     model = build_turbovla(ModelArgs())
 
     if args.pretrained_ckpt and os.path.exists(args.pretrained_ckpt):
-        load_and_interpolate_checkpoint(model, args.pretrained_ckpt, args.chunk_size)
+        load_and_interpolate_checkpoint(
+            model, args.pretrained_ckpt, args.chunk_size, keep_real_dinov3=args.keep_real_dinov3
+        )
     else:
         print(f"[Warning] Pretrained checkpoint not found at {args.pretrained_ckpt}. Training from scratch.")
 
@@ -235,6 +259,8 @@ def main():
         print(f"[WandB] Active run: {wandb_run.url}")
 
     model.train()
+    if args.freeze_vision:
+        model.vision_encoder.backbone.eval()
     global_step = 0
     accum_loss = 0.0
     start_time = time.time()

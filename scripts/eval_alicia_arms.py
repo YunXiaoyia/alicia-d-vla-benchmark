@@ -188,6 +188,9 @@ def eval_policy(cfg: EvalConfig):
     if train_config_path.exists():
         with open(train_config_path, "r") as f:
             train_config = json.load(f)
+            if not getattr(cfg, "rename_map", None) and train_config.get("rename_map"):
+                cfg.rename_map = train_config["rename_map"]
+                logger.info(f"Loaded rename_map from train_config.json: {cfg.rename_map}")
             if "dataset" in train_config and "repo_id" in train_config["dataset"]:
                 try:
                     dataset = LeRobotDataset(
@@ -231,12 +234,20 @@ def eval_policy(cfg: EvalConfig):
         if coeff != 0:
             cfg.policy.n_action_steps = 1  # ensembling re-queries the policy every step
         logger.info(f"CLI override: temporal_ensemble_coeff = {cfg.policy.temporal_ensemble_coeff}")
+    elif cfg.temporal_ensemble_coeff is not None and cfg.temporal_ensemble_coeff > 0 and hasattr(cfg.policy, "rtc_config"):
+        logger.info(
+            f"Policy '{cfg.policy.type}' uses Flow-Matching RTC instead of temporal_ensemble_coeff; "
+            "automatically enabling --use_rtc=true."
+        )
+        cfg.use_rtc = True
+
     if hasattr(cfg.policy, "n_action_steps") and cfg.n_action_steps is not None:
-        if cfg.temporal_ensemble_coeff in (None, 0):
+        if not hasattr(cfg.policy, "temporal_ensemble_coeff") or cfg.temporal_ensemble_coeff in (None, 0):
             cfg.policy.n_action_steps = cfg.n_action_steps
             logger.info(f"CLI override: n_action_steps = {cfg.policy.n_action_steps}")
 
     if cfg.use_rtc:
+        from lerobot.configs.types import RTCAttentionSchedule
         from lerobot.policies.rtc.configuration_rtc import RTCConfig
 
         if not hasattr(cfg.policy, "rtc_config") or cfg.policy.rtc_config is None:
@@ -245,11 +256,15 @@ def eval_policy(cfg: EvalConfig):
             cfg.policy.rtc_config.enabled = True
         if cfg.rtc_execution_horizon is not None:
             cfg.policy.rtc_config.execution_horizon = cfg.rtc_execution_horizon
+        elif getattr(cfg.policy, "type", None) == "smolvla":
+            cfg.policy.rtc_config.execution_horizon = cfg.policy.n_action_steps
+            cfg.policy.rtc_config.prefix_attention_schedule = RTCAttentionSchedule.ONES
         if cfg.rtc_max_guidance_weight is not None:
             cfg.policy.rtc_config.max_guidance_weight = cfg.rtc_max_guidance_weight
         logger.info(
             f"RTC enabled: execution_horizon={cfg.policy.rtc_config.execution_horizon}, "
-            f"max_guidance_weight={cfg.policy.rtc_config.max_guidance_weight}"
+            f"max_guidance_weight={cfg.policy.rtc_config.max_guidance_weight}, "
+            f"schedule={cfg.policy.rtc_config.prefix_attention_schedule}"
         )
         if hasattr(cfg.policy, "chunk_size") and hasattr(cfg.policy, "n_action_steps"):
             if cfg.policy.n_action_steps >= cfg.policy.chunk_size:
@@ -271,11 +286,14 @@ def eval_policy(cfg: EvalConfig):
     teleop_action_processor, robot_action_processor, robot_observation_processor = make_default_processors()
 
     # Build Policy Processors (following reference examples)
+    preprocessor_overrides = {"device_processor": {"device": str(cfg.policy.device)}}
+    if getattr(cfg, "rename_map", None):
+        preprocessor_overrides["rename_observations_processor"] = {"rename_map": cfg.rename_map}
     processor_kwargs = dict(
         policy_cfg=cfg.policy,
         pretrained_path=cfg.policy.pretrained_path,
         # The inference device is automatically set to match the detected hardware
-        preprocessor_overrides={"device_processor": {"device": str(cfg.policy.device)}},
+        preprocessor_overrides=preprocessor_overrides,
     )
     if not stats_from_checkpoint:
         processor_kwargs["dataset_stats"] = dataset.meta.stats
@@ -298,20 +316,19 @@ def eval_policy(cfg: EvalConfig):
     # But only start image writer if recording
     has_video_features = any("image" in key or "video" in key for key in dataset_features.keys())
     
-    # Auto-clean leftover temp dataset from a previous run (create() requires a fresh dir)
+    # Auto-clean leftover dataset dir from a previous run (create() requires a fresh dir)
     eval_root = Path(cfg.eval_dataset_root) if cfg.eval_dataset_root else None
-    if not cfg.record_eval:
-        import shutil
+    import shutil
 
-        if eval_root is not None:
-            stale_dir = eval_root / cfg.eval_dataset_repo_id
-        else:
-            from lerobot.utils.constants import HF_LEROBOT_HOME
+    if eval_root is not None:
+        stale_dir = eval_root / cfg.eval_dataset_repo_id
+    else:
+        from lerobot.utils.constants import HF_LEROBOT_HOME
 
-            stale_dir = HF_LEROBOT_HOME / cfg.eval_dataset_repo_id
-        if stale_dir.exists():
-            shutil.rmtree(stale_dir)
-            logger.info(f"Removed stale temp dataset: {stale_dir}")
+        stale_dir = HF_LEROBOT_HOME / cfg.eval_dataset_repo_id
+    if stale_dir.exists():
+        shutil.rmtree(stale_dir)
+        logger.info(f"Removed existing dataset directory before create: {stale_dir}")
 
     eval_dataset = LeRobotDataset.create(
         repo_id=cfg.eval_dataset_repo_id,
