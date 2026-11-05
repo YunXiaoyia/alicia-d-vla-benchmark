@@ -42,6 +42,17 @@ This repository provides a **complete, end-to-end hardware-software stack** and 
 | **TurboVLA (Unfrozen ViT 20k)** | 1-Step MeanFlow | Unfrozen DINOv3-ViT-B/16 + BERT | 30 | **1 (1-NFE)** | **0.088°** | **0.121°** | **1.0000** | 16.8 ms | 59.5 Hz | 0% (Visual Overfitting) |
 | **TurboVLA (Frozen-DINOv3 8k)** | 1-Step MeanFlow | **Frozen Real DINOv3-ViT-B/16** + BERT | 30 | **1 (1-NFE)** | **0.606°** | **0.908°** | **0.9989** | **16.8 ms** | **59.5 Hz** | **100%** (w/ Quintic $C^2$ Blender) |
 
+### Per-Model Deep-Dive Sub-Directories (`总比 + 分比` 专页索引)
+
+In addition to the cross-model benchmark (`总比`) on this main page, each policy family has a dedicated sub-directory (`分比`) containing its own side-by-side **Unsmoothed vs. Smoothed Real-Robot Rollout Comparison GIF**, **6-Joint Trajectory & Smoothness Ablation Plots**, and **Self-Contained Training/Evaluation Scripts**:
+
+| Model Directory | Dedicated Report | Side-by-Side Comparison GIF (`No-Smooth` vs. `Smooth`) | Per-Model Ablation Highlights |
+| :--- | :--- | :--- | :--- |
+| **[`act/`](./act/)** | **[`act/README.md`](./act/README.md)** | [`act/rollout_comparison_act.gif`](./act/rollout_comparison_act.gif) | Open-Loop Chunking (`n=30`) vs. Exponential Temporal Ensembling ($\lambda=0.01$): `-92%` Jerk, `-81%` Max Jump (`12.98° -> 2.47°`) |
+| **[`smolvla/`](./smolvla/)** | **[`smolvla/README.md`](./smolvla/README.md)** | [`smolvla/rollout_comparison_smolvla.gif`](./smolvla/rollout_comparison_smolvla.gif) | Flow-Matching RTC vs. No-Smooth + Execution Horizon Ablation (`n_action_steps = 15 vs. 20 vs. 30`) |
+| **[`pi0_5/`](./pi0_5/)** | **[`pi0_5/README.md`](./pi0_5/README.md)** | [`pi0_5/rollout_comparison_pi05.gif`](./pi0_5/rollout_comparison_pi05.gif) | `A800 Full FT` vs. `4090 LoRA Merger` + Flow-Matching RTC (`-83%` Chunk-Boundary Jump: `7.71° -> 1.33°`) |
+| **[`turbovla/`](./turbovla/)** | **[`turbovla/README.md`](./turbovla/README.md)** | [`turbovla/rollout_comparison_turbovla.gif`](./turbovla/rollout_comparison_turbovla.gif) | 3-Way Cross-Embodiment & Frozen-DINOv3 Ablation (`7.1×` Faster, `100%` Success) + Quintic $C^2$ Blender (`-97%` Jerk) |
+
 ---
 
 ## 1. Hardware & Task Setup
@@ -221,8 +232,35 @@ To establish a unified, apple-to-apple real-robot comparison, we recorded **8 cl
 
 ```text
 alicia-d-vla-benchmark/
-├── README.md                                  # Main benchmark documentation & experimental report
-├── assets/
+├── README.md                                  # Main cross-model benchmark report ('总比')
+├── act/                                       # [ACT Deep-Dive ('分比')]
+│   ├── README.md                              # ACT dedicated ablation report
+│   ├── act_smooth_vs_no_smooth.png            # 6-joint trajectory & smoothness comparison
+│   ├── rollout_comparison_act.gif             # Side-by-side No-Smooth vs. Temporal Ensemble GIF
+│   ├── train_act_4090.sh
+│   └── eval_act_{smooth,no_smooth}.sh
+├── smolvla/                                   # [SmolVLA Deep-Dive ('分比')]
+│   ├── README.md                              # SmolVLA dedicated ablation report
+│   ├── smolvla_smooth_vs_no_smooth.png        # 6-joint trajectory & RTC smoothness comparison
+│   ├── smolvla_horizon_ablation.png           # Execution horizon (n=15, 20, 30) ablation plot
+│   ├── rollout_comparison_smolvla.gif         # Side-by-side No-Smooth vs. Flow-Matching RTC GIF
+│   ├── train_smolvla_4090.sh
+│   └── eval_smolvla_{smooth,no_smooth}.sh
+├── pi0_5/                                     # [π0.5 Deep-Dive ('分比')]
+│   ├── README.md                              # π0.5 dedicated ablation report
+│   ├── pi05_smooth_vs_no_smooth.png           # 6-joint trajectory & boundary jump suppression
+│   ├── rollout_comparison_pi05.gif            # Side-by-side No-Smooth vs. Flow-Matching RTC GIF
+│   ├── train_pi05_{a800_full,4090_lora}.sh
+│   ├── merge_pi05_lora.py
+│   └── eval_pi05_{smooth,no_smooth}.sh
+├── turbovla/                                  # [TurboVLA Deep-Dive ('分比')]
+│   ├── README.md                              # TurboVLA 3-way transfer & Quintic C² report
+│   ├── turbovla_3way_transfer_ablation.png    # Scratch vs. Unfrozen vs. Frozen-DINOv3 ablation
+│   ├── turbovla_smooth_vs_no_smooth.png       # 6-joint trajectory & Quintic C² blender plot
+│   ├── rollout_comparison_turbovla.gif        # Side-by-side No-Smooth vs. Quintic C² Smooth GIF
+│   ├── train_turbovla_wipes_freeze_vit.sh
+│   └── eval_turbovla_{smooth,no_smooth}.sh
+├── assets/                                    # Cross-model ('总比') figures & rollout GIFs
 │   ├── demos/                                 # Real-robot closed-loop evaluation GIFs (Top + Wrist views)
 │   │   ├── rollout_turbovla_smooth.gif        # TurboVLA (Frozen-DINOv3 8k, Quintic C² Smooth) rollout
 │   │   ├── rollout_pi05_rtc.gif               # π0.5 (Full 20k, Flow-Matching RTC) rollout
