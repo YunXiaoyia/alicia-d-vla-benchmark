@@ -230,11 +230,11 @@ def plot_turbovla_warmstart_vs_scratch():
 
     w = 7
     ax1 = axes[0]
-    ax1.plot(s_b[w - 1 :], smooth(l_b, w), color="#d63031", linewidth=2.0, linestyle="--", label=f"Run B: Scratch Unfrozen (20k: {l_b[-1]:.4f}, 0% Real)")
-    ax1.plot(s_a[w - 1 :], smooth(l_a, w), color="#e67e22", linewidth=2.0, linestyle=":", label=f"Run A: Sim-ViT Warm-Start (20k: {l_a[-1]:.4f}, 0% Real)")
-    ax1.plot(s_c[w - 1 :], smooth(l_c, w), color="#0984e3", linewidth=2.2, linestyle="-.", label=f"Run C: Frozen-DINOv3 Warm-Full (8k: {l_c[-1]:.4f}, 100% Real)")
-    ax1.plot(s_d[w - 1 :], smooth(l_d, w), color="#6c5ce7", linewidth=2.2, linestyle="--", label=f"Run D: Frozen-DINOv3 Warm-Body (12.5k: {l_d[-1]:.4f}, Partial)")
-    ax1.plot(s_e[w - 1 :], smooth(l_e, w), color="#00b894", linewidth=2.8, linestyle="-", label=f"Run E: Frozen-DINOv3 Warm-Full (12.5k: {l_e[-1]:.4f}, 100% Best)")
+    ax1.plot(s_b[w - 1 :], smooth(l_b, w), color="#d63031", linewidth=2.0, linestyle="--", label=f"Run B: Scratch Unfrozen (20k: {l_b[-1]:.4f}, Real: Fail)")
+    ax1.plot(s_a[w - 1 :], smooth(l_a, w), color="#e67e22", linewidth=2.0, linestyle=":", label=f"Run A: Sim-ViT Warm-Start (20k: {l_a[-1]:.4f}, Real: Fail)")
+    ax1.plot(s_c[w - 1 :], smooth(l_c, w), color="#0984e3", linewidth=2.2, linestyle="-.", label=f"Run C: Frozen-DINOv3 Warm-Full (8k: {l_c[-1]:.4f}, Real: Success)")
+    ax1.plot(s_d[w - 1 :], smooth(l_d, w), color="#6c5ce7", linewidth=2.2, linestyle="--", label=f"Run D: Frozen-DINOv3 Warm-Body (12.5k: {l_d[-1]:.4f}, Real: Success)")
+    ax1.plot(s_e[w - 1 :], smooth(l_e, w), color="#00b894", linewidth=2.8, linestyle="-", label=f"Run E: Frozen-DINOv3 Warm-Full (12.5k: {l_e[-1]:.4f}, Real: Success)")
     ax1.set_yscale("log")
     ax1.set_title("TurboVLA Action L1 Loss Convergence (Log Scale)", fontsize=12.2, fontweight="bold")
     ax1.set_xlabel("Training Steps (Effective Batch Size = 64)", fontsize=10.2)
@@ -258,16 +258,16 @@ def plot_turbovla_warmstart_vs_scratch():
     ax2.set_xticks(x)
     ax2.set_xticklabels(labels, fontsize=8.2, fontweight="bold")
     ax2.set_ylabel("Open-Loop 6-Joint MAE (°) on Training Ep0", fontsize=10.2)
-    ax2.set_title("Open-Loop Precision & Real-Robot Transfer Outcome", fontsize=12.2, fontweight="bold")
+    ax2.set_title("Open-Loop Precision & Real-Robot Outcome", fontsize=12.2, fontweight="bold")
     ax2.set_ylim(0, 0.78)
     ax2.grid(True, axis="y", linestyle="--", alpha=0.45)
 
     outcomes = [
-        "0.145°\n0% (Overfit)",
-        "0.088°\n0% (Sim Drift)",
-        "0.606°\n100% Real",
-        "0.171°\nRand Head",
-        "0.166°\n100% Best!",
+        "0.145°\nFail (Overfit)",
+        "0.088°\nFail (Sim Drift)",
+        "0.606°\nReal: Success",
+        "0.171°\nReal: Success",
+        "0.166°\nSuccess (Best)",
     ]
     for bar, ann in zip(bars2, outcomes):
         ax2.text(

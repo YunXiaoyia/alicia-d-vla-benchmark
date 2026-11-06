@@ -26,38 +26,37 @@
   - `SmolVLA (30k)`：[`assets/demos/rollout_smolvla_ensemble.gif`](../assets/demos/rollout_smolvla_ensemble.gif)
   - `ACT (50k)`：[`assets/demos/rollout_act50_ensemble.gif`](../assets/demos/rollout_act50_ensemble.gif)
 - **核心横向定量结论（同一 15 步块执行窗口，Frames 150–300）**：
-  - **TurboVLA (`Warm-Full 12.5k`, 1-NFE MeanFlow)**：6 轴平均 MAE **0.166°**（RMSE `0.217°`），夹爪 MAE **6.53**，单块推理延迟 **16.8 ms**（RTX 4090，比 $\pi_{0.5}$ / StarVLA 快 **6.8×**），真机闭环成功率 **100%**；
-  - **$\pi_{0.5}$ (`Full 20k`, PaliGemma-3B + 10-step Flow Matching)**：6 轴平均 MAE **0.382°**（RMSE `0.518°`），夹爪 MAE **19.23**，单块延迟 **112.0 ms**，真机闭环成功率 **100%**；
-  - **SmolVLA (`30k`, SmolVLM2-500M + 10-step Flow Matching)**：6 轴平均 MAE **0.386°**（RMSE `0.501°`），夹爪 MAE **26.43**，单块延迟 **56.3 ms**，真机闭环成功率 **100%**；
-  - **StarVLA (`FixQwen 10k`, Frozen Qwen3.5-2B-VL + 10-step DiT-B)**：6 轴平均 MAE **0.639°**（RMSE `0.889°`），夹爪 MAE **16.90**，单块延迟 **115.0 ms**，真机闭环成功率 **100%**；
-  - **ACT (`50k`, ResNet18 + CVAE)**：6 轴平均 MAE **1.209°**（RMSE `1.494°`），夹爪 MAE **14.12**，单块延迟 **6.1 ms**，真机闭环成功率 **100%**。
+  - **TurboVLA (`Warm-Full 12.5k`, 1-NFE MeanFlow)**：6 轴平均 MAE **0.166°**（RMSE `0.217°`），夹爪 MAE **6.53**，单块推理延迟 **16.8 ms**（RTX 4090，比 $\pi_{0.5}$ / StarVLA 快 **6.8×**），真机闭环表现：**成功**；
+  - **$\pi_{0.5}$ (`Full 20k`, PaliGemma-3B + 10-step Flow Matching)**：6 轴平均 MAE **0.382°**（RMSE `0.518°`），夹爪 MAE **19.23**，单块延迟 **112.0 ms**，真机闭环表现：**成功**；
+  - **SmolVLA (`30k`, SmolVLM2-500M + 10-step Flow Matching)**：6 轴平均 MAE **0.386°**（RMSE `0.501°`），夹爪 MAE **26.43**，单块延迟 **56.3 ms**，真机闭环表现：**成功**；
+  - **StarVLA (`FixQwen 10k`, Frozen Qwen3.5-2B-VL + 10-step DiT-B)**：6 轴平均 MAE **0.639°**（RMSE `0.889°`），夹爪 MAE **16.90**，单块延迟 **115.0 ms**，真机闭环表现：**成功**；
+  - **ACT (`50k`, ResNet18 + CVAE)**：6 轴平均 MAE **1.209°**（RMSE `1.494°`），夹爪 MAE **14.12**，单块延迟 **6.1 ms**，真机闭环表现：**成功**。
 
 ### 3. 五大模型真机闭环时序平滑横向消融（Temporal Ensembling / Flow-Matching RTC / Quintic $C^2$ Blender）
 - **横向对比总图**：[`assets/benchmarks/temporal_smoothing_ablation.png`](../assets/benchmarks/temporal_smoothing_ablation.png)
 - **ACT 指数时序加权融合 (`temporal_ensemble_coeff = 0.01`)**：
-  - 单步动作变化 $\|\Delta a_t\|_2$ 从 `0.0109 rad` 降至 **`0.0053 rad (-51%)`**，加加速度 `MeanJerk` 从 `0.5212` 降至 **`0.0408 °/step³ (-92%)`**，最大块边界跳变从 `12.98°` 降至 **`2.45° (-81%)`**。
+  - 单步动作变化 $\|\Delta a_t\|_2$ 从 `0.0109 rad` 降至 **`0.0053 rad (-51%)`**，加加速度 `MeanJerk` 从 `0.5212` 降至 **`0.0408 °/step³ (-92%)`**，最大块边界跳变从 `12.98°` 降至 **`2.45° (-81%)`**，真机表现：**成功**。
 - **SmolVLA & $\pi_{0.5}$ 实时分块引导（Flow-Matching RTC Prefix Guidance）**：
-  - 将 $\pi_{0.5}$ 的块边界最大单步跳变从 `7.71°` 压降至 **`1.33° (-83%)`**。
+  - 将 $\pi_{0.5}$ 的块边界最大单步跳变从 `7.71°` 压降至 **`1.33° (-83%)`**，真机表现：**成功**。
 - **StarVLA & TurboVLA 五次多项式 $C^2$ 边界锚定器 (`RecedingHorizonTrajectoryBlender`)**：
-  - **StarVLA (`FixQwen 10k`)**：步间变化 $\|\Delta a_t\|_2$ 从 `0.0137 rad` 降至 **`0.0060 rad (-56%)`**，`MeanJerk` 从 `0.7096` 降至 **`0.0179 °/step³ (-97%)`**，速度翻转率从 `54.9%` 降至 **`0.3%`**，最大单步跳变从 `3.15°` 降至 **`0.88° (-72%)`**；
-  - **TurboVLA (`Warm-Full 12.5k`)**：步间变化 $\|\Delta a_t\|_2$ 从 `0.0102 rad` 降至 **`0.0052 rad (-49%)`**，`MeanJerk` 从 `0.4067` 降至 **`0.0151 °/step³ (-96%)`**，速度翻转率从 `35.8%` 降至 **`1.2%`**，最大单步跳变从 `5.98°` 降至 **`1.31° (-78%)`**。
+  - **StarVLA (`FixQwen 10k`)**：步间变化 $\|\Delta a_t\|_2$ 从 `0.0137 rad` 降至 **`0.0060 rad (-56%)`**，`MeanJerk` 从 `0.7096` 降至 **`0.0179 °/step³ (-97%)`**，速度翻转率从 `54.9%` 降至 **`0.3%`**，最大单步跳变从 `3.15°` 降至 **`0.88° (-72%)`**，真机表现：**成功**；
+  - **TurboVLA (`Warm-Full 12.5k`)**：步间变化 $\|\Delta a_t\|_2$ 从 `0.0102 rad` 降至 **`0.0052 rad (-49%)`**，`MeanJerk` 从 `0.4067` 降至 **`0.0151 °/step³ (-96%)`**，速度翻转率从 `35.8%` 降至 **`1.2%`**，最大单步跳变从 `5.98°` 降至 **`1.31° (-78%)`**，真机表现：**成功**。
 
 ---
 
 ## 二、模块二：各策略纵向消融实验（`纵向对比 / 分比`）
 
-### 1. StarVLA 纵向三路消融：全量微调 vs. 仅冻结 ViT vs. 全冻结 Qwen3.5-2B-VL (`FixQwen`)
-- **专页报告与图表**：[`starvla/README.md`](../starvla/README.md)、[`starvla/starvla_3way_freeze_ablation.png`](../starvla/starvla_3way_freeze_ablation.png)、[`starvla/starvla_smooth_vs_no_smooth.png`](../starvla/starvla_smooth_vs_no_smooth.png)
-- **三路对照结论**：
-  - **Run A (`Unfrozen VLM`, 20k Steps)**：2.26B 全参数可训练，耗时 `171 min`，训练帧开环 MAE `0.354°`，但因 2B VLM 记忆单场景静态背景，真机闭环 `0%`；
-  - **Run B (`FreezeViT Only`, 10k Steps)**：仅冻结视觉塔，1.93B LLM 仍可训练，耗时 `74 min`，真机易受光照微变产生轨迹漂移；
-  - **Run C (`FixQwen Full VLM Freeze`, 10k Steps)**：设置 `freeze_module: "qwen_vl_interface"`，仅训练 `209M` DiT-B 动作头与本体投影层，耗时仅 **`44 min`（提速 3.9 倍）**，显存降至 `9.6 GB`，**真机闭环抓取放置成功率 100%**。
+### 1. StarVLA 纵向消融：仅冻结视觉塔 (`FreezeViT`) vs. 全冻结 Qwen3.5-2B-VL (`FixQwen`)
+- **专页报告与图表**：[`starvla/README.md`](../starvla/README.md)、[`starvla/starvla_3way_freeze_ablation.png`](../starvla/starvla_3way_freeze_ablation.png)、[`starvla/starvla_smooth_vs_no_smooth.png`](../starvla/starvla_smooth_vs_no_smooth.png)、[`starvla/starvla_freeze_vit_smooth_vs_no_smooth.png`](../starvla/starvla_freeze_vit_smooth_vs_no_smooth.png)
+- **两路冻结与四组真机闭环对照结论**：
+  - **`FreezeViT (10k)`（仅冻结视觉塔）**：`1.93B` 参数可训练，耗时 `74 分钟`（显存 `15.8 GB`），开环 MAE `0.543°`，无平滑 (`eval_starvla_freeze_vit_no_smooth`) 与五次多项式平滑 (`eval_starvla_smooth`) 真机表现均为**成功**（平滑后 `MeanJerk` 从 `0.5927` 降至 `0.0208 °/step³ (-96%)`）；
+  - **`FixQwen (10k)`（全冻结 Qwen3.5-2B-VL — 最优配置）**：设置 `freeze_module: "qwen_vl_interface"`，仅训练 `209M` DiT-B 动作头与状态投影层，耗时缩短至 **`44 分钟`（提速 1.7×）**，显存降至 **`9.6 GB`（降低 39%）**，无平滑 (`eval_starvla_fixqwen_no_smooth`) 与平滑 (`eval_starvla_fixqwen_smooth`) 真机表现均为**成功**（平滑后 `MeanJerk` 低至 **`0.0179 °/step³ (-97%)`**，速度符号翻转率仅 **`0.3%`**）。
 
 ### 2. TurboVLA 纵向五路消融：跨本体选择性热启动与冻结真实 DINOv3
 - **专页报告与图表**：[`turbovla/README.md`](../turbovla/README.md)、[`turbovla/turbovla_3way_transfer_ablation.png`](../turbovla/turbovla_3way_transfer_ablation.png)、[`turbovla/turbovla_smooth_vs_no_smooth.png`](../turbovla/turbovla_smooth_vs_no_smooth.png)
 - **核心训练源码**：[`policies/turbovla_alicia/train_wipes.py`](../policies/turbovla_alicia/train_wipes.py)
 - **五路对照结论**：
-  - **Run B (`Scratch Unfrozen`, 20k)** & **Run A (`Sim-ViT Unfrozen Warm-Start`, 20k)**：未冻结视觉主干导致单场景背景记忆或仿真 DINO 特征退化，真机 `0%`；
-  - **Run C (`Frozen Real DINOv3 + Warm-Full`, 8k)**：耗时 `23 min`，开环 MAE `0.606°`，真机平滑下 `100%` 成功；
-  - **Run D (`Frozen Real DINOv3 + Warm-Body`, 12.5k)**：仅热启动 Transformer 编码器而随机初始化动作头（`Loss=0.0131`），无平滑下抓取偏浅；
-  - **Run E (`Frozen Real DINOv3 + Warm-Full`, 12.5k — 最优配置)**：同时保留真实世界冻结 `DINOv3` 与 `LIBERO 40k` 预训练 MeanFlow 动作头，Loss 降至 **`0.0110`**，开环 MAE 降至 **`0.166°`**，**无论是否开启平滑均实现 100% 真机闭环成功**。
+  - **Run B (`Scratch Unfrozen`, 20k)** & **Run A (`Sim-ViT Unfrozen Warm-Start`, 20k)**：未冻结视觉主干导致单场景背景记忆或仿真 DINO 特征偏移，真机表现：失败；
+  - **Run C (`Frozen Real DINOv3 + Warm-Full`, 8k)**：耗时 `23 分钟`，开环 MAE `0.606°`，真机表现：**成功**；
+  - **Run D (`Frozen Real DINOv3 + Warm-Body`, 12.5k)**：仅热启动 Transformer 融合层而随机初始化动作头（`Loss=0.0131`，开环 MAE `0.171°`），真机表现：**成功**；
+  - **Run E (`Frozen Real DINOv3 + Warm-Full`, 12.5k — 最优配置)**：同时保留真实世界冻结 `DINOv3` 与 `LIBERO 40k` 预训练 MeanFlow 动作头，Loss 降至 **`0.0110`**，开环 MAE 降至 **`0.166°`**，真机表现：**成功**（且相比 `Warm-Body` 步间 Jerk 降低 **2.2×~2.9×**）。

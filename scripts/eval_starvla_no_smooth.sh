@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# [StarVLA - Best Variant: FixQwen 10k] (Frozen Full Qwen3.5-2B-VL + Flow-Matching DiT-B / QwenGR00T)
+# [StarVLA - Variant: FreezeViT 10k] (Frozen ViT + Fine-tuned Qwen3.5-2B-VL + Flow-Matching DiT-B / QwenGR00T)
 # 模式：无平滑基线 (Unsmoothed Open-Loop Chunking, n_action_steps=30)
 # 硬件端口：机械臂 /dev/ttyACM0 | 全局相机 top=/dev/video8 | 腕部相机 wrist=/dev/video6
 # ==============================================================================
@@ -11,7 +11,7 @@ export PYTHONPATH="${VLA_ROOT}/starVLA:${VLA_ROOT}/lerobot/src:${VLA_ROOT}/Alici
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-CKPT_PATH="${CKPT_PATH:-${VLA_ROOT}/weights/starvla_wipes_qwen3_5_2b_gr00t_fixqwen/pytorch_model.pt}"
+CKPT_PATH="${CKPT_PATH:-${VLA_ROOT}/weights/starvla_wipes_qwen3_5_2b_gr00t_freeze_vit/pytorch_model.pt}"
 
 /home/yunyi/miniconda3/envs/starvla/bin/python \
   "${VLA_ROOT}/alicia-d-vla-benchmark/scripts/eval_alicia_starvla.py" \
@@ -30,6 +30,6 @@ CKPT_PATH="${CKPT_PATH:-${VLA_ROOT}/weights/starvla_wipes_qwen3_5_2b_gr00t_fixqw
   --num_episodes=1 \
   --record_eval=true \
   --eval_dataset_root="${VLA_ROOT}/eval_runs" \
-  --eval_dataset_repo_id="local/eval_starvla_fixqwen_no_smooth" \
+  --eval_dataset_repo_id="local/eval_starvla_freeze_vit_no_smooth" \
   --display_data=false \
   "$@"

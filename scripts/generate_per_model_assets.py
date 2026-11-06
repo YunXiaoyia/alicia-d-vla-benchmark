@@ -283,9 +283,13 @@ def parse_starvla_log(log_path: Path):
 
 
 def plot_starvla_3way_freeze_ablation(out_png: Path):
-    s_unf, l_unf = parse_starvla_log(BENCH_ROOT / "docs/train_starvla_unfrozen.log")
     s_vit, l_vit = parse_starvla_log(BENCH_ROOT / "docs/train_starvla_freeze_vit.log")
     s_qwen, l_qwen = parse_starvla_log(BENCH_ROOT / "docs/train_starvla_fixqwen.log")
+
+    d_vit_no = load_run_telemetry("eval_starvla_freeze_vit_no_smooth")
+    d_vit_sm = load_run_telemetry("eval_starvla_smooth")
+    d_qwen_no = load_run_telemetry("eval_starvla_fixqwen_no_smooth")
+    d_qwen_sm = load_run_telemetry("eval_starvla_fixqwen_smooth")
 
     def smooth(y, w=15):
         if len(y) < w:
@@ -295,65 +299,90 @@ def plot_starvla_3way_freeze_ablation(out_png: Path):
     fig, axes = plt.subplots(1, 3, figsize=(19, 5.5), dpi=175)
     plt.subplots_adjust(wspace=0.25)
 
-    # Panel 1: DiT Flow-Matching Loss Convergence
+    # Panel 1: DiT Flow-Matching Loss Convergence (FreezeViT vs FixQwen)
     ax1 = axes[0]
     w = 15
-    ax1.plot(s_unf, l_unf, color="#d63031", alpha=0.18, linewidth=0.9)
-    ax1.plot(s_vit, l_vit, color="#0984e3", alpha=0.18, linewidth=0.9)
+    ax1.plot(s_vit, l_vit, color="#0984e3", alpha=0.20, linewidth=0.9)
     ax1.plot(s_qwen, l_qwen, color="#00b894", alpha=0.22, linewidth=0.9)
 
-    ax1.plot(s_unf[w - 1 :], smooth(l_unf, w), color="#d63031", linestyle="--", linewidth=2.2, label=f"Run A: Unfrozen VLM (20k: {l_unf[-1]:.4f}, 0% Real)")
-    ax1.plot(s_vit[w - 1 :], smooth(l_vit, w), color="#0984e3", linestyle="-.", linewidth=2.2, label=f"Run B: FreezeViT Only (10k: {l_vit[-1]:.4f}, Drift)")
-    ax1.plot(s_qwen[w - 1 :], smooth(l_qwen, w), color="#00b894", linestyle="-", linewidth=2.6, label=f"Run C: FixQwen Full VLM Freeze (10k: {l_qwen[-1]:.4f}, 100% Real)")
+    ax1.plot(
+        s_vit[w - 1 :],
+        smooth(l_vit, w),
+        color="#0984e3",
+        linestyle="-.",
+        linewidth=2.3,
+        label=f"FreezeViT (10k: {l_vit[-1]:.4f}, Real: Success)",
+    )
+    ax1.plot(
+        s_qwen[w - 1 :],
+        smooth(l_qwen, w),
+        color="#00b894",
+        linestyle="-",
+        linewidth=2.7,
+        label=f"FixQwen Full VLM Freeze (10k: {l_qwen[-1]:.4f}, Real: Success)",
+    )
     ax1.set_yscale("log")
     ax1.set_title("StarVLA Action DiT Flow Loss Convergence (Log Scale)", fontsize=12, fontweight="bold")
     ax1.set_xlabel("Training Steps (Batch Size = 16)", fontsize=10)
     ax1.set_ylabel("Flow-Matching MSE Loss (Log Scale)", fontsize=10)
     ax1.grid(True, which="both", linestyle="--", alpha=0.45)
-    ax1.legend(fontsize=8.3, loc="upper right", framealpha=0.95)
+    ax1.legend(fontsize=8.5, loc="upper right", framealpha=0.95)
 
-    # Panel 2: Open-Loop 6-Joint MAE vs Real-Robot Generalization
+    # Panel 2: Training Time & VRAM Efficiency on RTX 4090 (FreezeViT vs FixQwen)
     ax2 = axes[1]
-    labels = ["Run A: Unfrozen VLM\n(2.26B Trainable\n20k Steps)", "Run B: FreezeViT\n(1.93B Trainable\n10k Steps)", "Run C: FixQwen\n(0.21B Trainable\n10k Steps)"]
-    openloop_maes = [0.422, 0.562, 0.639]
-    colors = ["#d63031", "#0984e3", "#00b894"]
+    labels = [
+        "FreezeViT\n(Freeze Vision Tower Only\n1.93B Trainable, 10k Steps)",
+        "FixQwen\n(Freeze Full Qwen3.5-2B-VL\n0.21B Trainable, 10k Steps)",
+    ]
+    wall_mins = [74.0, 44.0]
+    colors = ["#0984e3", "#00b894"]
     x = np.arange(len(labels))
-    bars = ax2.bar(x, openloop_maes, width=0.45, color=colors, edgecolor="#2d3436", linewidth=1.2, alpha=0.88)
+    bars2 = ax2.bar(x, wall_mins, width=0.42, color=colors, edgecolor="#2d3436", linewidth=1.2, alpha=0.88)
     ax2.set_xticks(x)
-    ax2.set_xticklabels(labels, fontsize=8.8, fontweight="bold")
-    ax2.set_ylabel("Open-Loop 6-Joint MAE (°) on Training Ep0", fontsize=10)
-    ax2.set_title("Open-Loop Memorization vs. Real-Robot Success", fontsize=12, fontweight="bold")
-    ax2.set_ylim(0, 0.85)
+    ax2.set_xticklabels(labels, fontsize=9.0, fontweight="bold")
+    ax2.set_ylabel("Total Training Time (Minutes on RTX 4090)", fontsize=10)
+    ax2.set_title("Training Efficiency & GPU Memory (RTX 4090)", fontsize=12, fontweight="bold")
+    ax2.set_ylim(0, 96)
     ax2.grid(True, axis="y", linestyle="--", alpha=0.45)
-    outcomes = [
-        "0.422° Open-Loop\n0% Real (VLM Overfit)",
-        "0.562° Open-Loop\nPartial (2B LLM Drift)",
-        "0.639° Open-Loop\n100% Real Success!",
+    anns2 = [
+        "74 min (2.25 it/s)\n15.8 GB VRAM | Real: Success",
+        "44 min (3.79 it/s, 1.7× Faster)\n9.6 GB VRAM (-39%) | Real: Success",
     ]
-    for bar, txt in zip(bars, outcomes):
-        ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.02, txt, ha="center", va="bottom", fontsize=8.3, fontweight="bold")
+    for bar, txt in zip(bars2, anns2):
+        ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 2.2, txt, ha="center", va="bottom", fontsize=8.4, fontweight="bold")
 
-    # Panel 3: Training Time & Efficiency on RTX 4090
+    # Panel 3: Real-Robot Closed-Loop Smoothness Across All 4 Runs (FreezeViT vs FixQwen × No-Smooth vs Smooth)
     ax3 = axes[2]
-    wall_mins = [171.0, 74.0, 44.0]
-    speeds = [1.95, 2.25, 3.79]
-    bars3 = ax3.bar(x, wall_mins, width=0.45, color=colors, edgecolor="#2d3436", linewidth=1.2, alpha=0.88)
-    ax3.set_xticks(x)
-    ax3.set_xticklabels(labels, fontsize=8.8, fontweight="bold")
-    ax3.set_ylabel("Total Training Wall-Clock Time (Minutes on RTX 4090)", fontsize=10)
-    ax3.set_title("Training Efficiency & Throughput (RTX 4090)", fontsize=12, fontweight="bold")
-    ax3.set_ylim(0, 215)
-    ax3.grid(True, axis="y", linestyle="--", alpha=0.45)
-    anns3 = [
-        f"171 min (1.95 it/s)\n18.4 GB VRAM",
-        f"74 min (2.25 it/s)\n15.8 GB VRAM",
-        f"44 min (3.79 it/s, 3.9× Faster)\n9.6 GB VRAM | Best!",
+    run_labels = [
+        "FreezeViT\nNo-Smooth",
+        "FreezeViT\nQuintic C²",
+        "FixQwen\nNo-Smooth",
+        "FixQwen\nQuintic C²",
     ]
-    for bar, txt in zip(bars3, anns3):
-        ax3.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 4.0, txt, ha="center", va="bottom", fontsize=8.2, fontweight="bold")
+    jerks = [d_vit_no["mean_jerk"], d_vit_sm["mean_jerk"], d_qwen_no["mean_jerk"], d_qwen_sm["mean_jerk"]]
+    sfrs = [d_vit_no["sfr"], d_vit_sm["sfr"], d_qwen_no["sfr"], d_qwen_sm["sfr"]]
+    bar_cols = ["#e17055", "#0984e3", "#fdcb6e", "#00b894"]
+    x3 = np.arange(len(run_labels))
+    bars3 = ax3.bar(x3, jerks, width=0.48, color=bar_cols, edgecolor="#2d3436", linewidth=1.1, alpha=0.90)
+    ax3.set_xticks(x3)
+    ax3.set_xticklabels(run_labels, fontsize=8.8, fontweight="bold")
+    ax3.set_ylabel("Mean Joint Jerk (°/step³) — Lower = Smoother", fontsize=10)
+    ax3.set_title("Real-Robot Closed-Loop Jerk & Sign-Flip (All 4 Runs)", fontsize=12, fontweight="bold")
+    ax3.set_ylim(0, max(jerks) * 1.28)
+    ax3.grid(True, axis="y", linestyle="--", alpha=0.45)
+    for bar, j_val, sfr_val in zip(bars3, jerks, sfrs):
+        ax3.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.015,
+            f"Jerk: {j_val:.3f}\nFlip: {sfr_val:.1f}%",
+            ha="center",
+            va="bottom",
+            fontsize=8.0,
+            fontweight="bold",
+        )
 
     plt.suptitle(
-        "StarVLA (Qwen3.5-2B-VL + Flow-Matching DiT-B) — 3-Way VLM Freezing Ablation on Alicia-D",
+        "StarVLA (Qwen3.5-2B-VL + Flow-Matching DiT-B) — FreezeViT vs. FixQwen Training & Real-Robot Ablation",
         fontsize=13.5,
         fontweight="bold",
         y=1.03,
@@ -520,6 +549,13 @@ def main():
         "Quintic C² Blender",
         BENCH_ROOT / "starvla/starvla_smooth_vs_no_smooth.png",
     )
+    plot_model_smooth_vs_no_smooth(
+        "StarVLA (FreezeViT 10k, Frozen Vision Tower + Flow-Matching DiT-B)",
+        "eval_starvla_freeze_vit_no_smooth",
+        "eval_starvla_smooth",
+        "Quintic C² Blender",
+        BENCH_ROOT / "starvla/starvla_freeze_vit_smooth_vs_no_smooth.png",
+    )
     create_side_by_side_comparison_gif(
         "eval_starvla_fixqwen_no_smooth",
         "eval_starvla_fixqwen_smooth",
@@ -528,6 +564,15 @@ def main():
         BENCH_ROOT / "starvla/rollout_comparison_starvla.gif",
         step=8,
         max_frames=499,
+    )
+    create_side_by_side_comparison_gif(
+        "eval_starvla_freeze_vit_no_smooth",
+        "eval_starvla_smooth",
+        "StarVLA (FreezeViT 10k)",
+        "Quintic C2 Blender",
+        BENCH_ROOT / "starvla/rollout_comparison_starvla_freeze_vit.gif",
+        step=8,
+        max_frames=500,
     )
 
     # 5. TurboVLA

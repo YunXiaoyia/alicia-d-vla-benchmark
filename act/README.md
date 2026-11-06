@@ -38,10 +38,10 @@
   <p><em>图 2：ACT (50k) 六轴真机轨迹、步间动作变化 ||Δa_t||₂ 以及平滑度四维指标对比（No-Smooth vs. Temporal Ensembling λ=0.01）。</em></p>
 </div>
 
-| 评测配置 (Evaluation Mode) | 轨迹帧数 $N$ | 步间变化均值 $\|\Delta a_t\|_2$ (rad) $\downarrow$ | 95分位 $\|\Delta a_t\|_2$ (rad) $\downarrow$ | 平均角加速度 (°/step²) $\downarrow$ | 平均加加速度 Jerk (°/step³) $\downarrow$ | 速度符号翻转率 (SignFlip) $\downarrow$ | 最大单步跳变 (MaxJump) $\downarrow$ | 真机任务成功率 |
+| 评测配置 (Evaluation Mode) | 轨迹帧数 $N$ | 步间变化均值 $\|\Delta a_t\|_2$ (rad) $\downarrow$ | 95分位 $\|\Delta a_t\|_2$ (rad) $\downarrow$ | 平均角加速度 (°/step²) $\downarrow$ | 平均加加速度 Jerk (°/step³) $\downarrow$ | 速度符号翻转率 (SignFlip) $\downarrow$ | 最大单步跳变 (MaxJump) $\downarrow$ | 真机表现 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **ACT 无平滑 (`eval_act_no_smooth`)** | 726 | 0.0109 | 0.0349 | 0.2765 | 0.5212 | 38.5% | 12.98° | 100% (伴随块边界剧烈顿挫) |
-| **ACT 指数时序平滑 (`eval_act_smooth`, $\lambda=0.01$)** | 700 | **0.0053 (-51%)** | **0.0191 (-45%)** | **0.0244 (-91%)** | **0.0408 (-92%)** | **2.4%** | **2.45° (-81%)** | **100% (极度柔顺平滑)** |
+| **ACT 无平滑 (`eval_act_no_smooth`)** | 726 | 0.0109 | 0.0349 | 0.2765 | 0.5212 | 38.5% | 12.98° | **成功**（伴随块边界剧烈顿挫） |
+| **ACT 指数时序平滑 (`eval_act_smooth`, $\lambda=0.01$)** | 700 | **0.0053 (-51%)** | **0.0191 (-45%)** | **0.0244 (-91%)** | **0.0408 (-92%)** | **2.4%** | **2.45° (-81%)** | **成功（极度柔顺平滑）** |
 
 ---
 
