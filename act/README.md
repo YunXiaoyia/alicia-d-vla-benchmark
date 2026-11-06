@@ -13,12 +13,12 @@
 | **参数量 (Total Parameters)** | `~84M` |
 | **预测视野 (Chunk Size $K$)** | `50` 步 (`1.67s @ 30 Hz`) |
 | **归一化策略 (Normalization)** | 状态与动作均采用 Z-Score (`MEAN_STD`) |
-| **训练步数與硬件 (Training)** | `50,000` steps，`batch_size = 8`，单卡 `NVIDIA RTX 4090` |
+| **训练步数与硬件 (Training)** | `50,000` steps，`batch_size = 8`，单卡 `NVIDIA RTX 4090` |
 | **单块推理延迟 (Chunk Latency)** | **`6.1 ms`** on RTX 4090 (`163.9 Hz`) / **`8.8 ms`** on RTX 3080 Laptop (`113.6 Hz`) |
 
 ---
 
-## 2. 真机闭环平滑对比演示 (Unsmoothed vs. Exponential Temporal Ensembling $\lambda=0.01$)
+## 2. 纵向对比：真机闭环时序平滑消融 (Unsmoothed vs. Exponential Temporal Ensembling $\lambda=0.01$)
 
 左半部分为 **无平滑开环分块执行 (`n_action_steps = 30`, `temporal_ensemble_coeff = 0`)**，右半部分为 **指数时序加权平滑 (`n_action_steps = 1`, `temporal_ensemble_coeff = 0.01`)**：
 
@@ -31,7 +31,7 @@
 
 ## 3. 真机闭环轨迹与平滑度定量消融 (Quantitative Smoothness Ablation)
 
-当 `ACT` 采用开环分块执行（每 `30` 步重新推理一次）时，由于相邻块在不同时刻的图像观测下独立解码，块边界处会产生高达 **`12.98°/step`** 的瞬时关节跳变（1 Hz 周期性机械顿挫）。开启指数时序加权集成（`ACTTemporalEnsembler`，$w_i = \exp(-0.01 \cdot i)$）后，每步融合过去 50 个历史预测块的当前时刻动作，完全消除了块边界断层：
+当 `ACT` 采用开环分块执行（每 `30` 步重新推理一次）时，由于相邻块在不同时刻的图像观测下独立解码，块边界处会产生高达 **`12.98°/step`** 的瞬时关节跳变（1 Hz 周期性机械顿挫）。开启指数时序加权集成（`ACTTemporalEnsembler`，$w_i = \exp(-0.01 \cdot i)$）后，每步融合过去 50 个历史预测块的当前时刻动作，彻底消除了块边界断层：
 
 <div align="center">
   <img src="act_smooth_vs_no_smooth.png" width="100%" alt="ACT Smooth vs No-Smooth Trajectory Ablation"/>
@@ -40,8 +40,8 @@
 
 | 评测配置 (Evaluation Mode) | 轨迹帧数 $N$ | 步间变化均值 $\|\Delta a_t\|_2$ (rad) $\downarrow$ | 95分位 $\|\Delta a_t\|_2$ (rad) $\downarrow$ | 平均角加速度 (°/step²) $\downarrow$ | 平均加加速度 Jerk (°/step³) $\downarrow$ | 速度符号翻转率 (SignFlip) $\downarrow$ | 最大单步跳变 (MaxJump) $\downarrow$ | 真机任务成功率 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **ACT 无平滑 (`n_action_steps=30`)** | 726 | 0.0109 | 0.0349 | 0.2765 | 0.5212 | 38.5% | 12.98° | 100% (伴随块边界剧烈顿挫) |
-| **ACT 指数时序平滑 ($\lambda=0.01$)** | 710 | **0.0051 (-53%)** | **0.0201 (-42%)** | **0.0259 (-91%)** | **0.0433 (-92%)** | **7.3%** | **2.47° (-81%)** | **100% (极度柔顺平滑)** |
+| **ACT 无平滑 (`eval_act_no_smooth`)** | 726 | 0.0109 | 0.0349 | 0.2765 | 0.5212 | 38.5% | 12.98° | 100% (伴随块边界剧烈顿挫) |
+| **ACT 指数时序平滑 (`eval_act_smooth`, $\lambda=0.01$)** | 700 | **0.0053 (-51%)** | **0.0191 (-45%)** | **0.0244 (-91%)** | **0.0408 (-92%)** | **2.4%** | **2.45° (-81%)** | **100% (极度柔顺平滑)** |
 
 ---
 
@@ -51,7 +51,7 @@
 
 | Joint 1 (Base) | Joint 2 (Shoulder) | Joint 3 (Elbow) | Joint 4 (Forearm) | Joint 5 (Wrist Pitch) | Joint 6 (Wrist Roll) | **6轴平均 MAE** | **6轴 RMSE** | **夹爪 MAE (0–1000)** |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| 1.855° | 3.746° | 2.668° | 1.320° | 1.300° | 0.931° | **1.970°** | **2.660°** | **90.02** |
+| 1.229° | 1.328° | 1.715° | 0.845° | 1.089° | 1.050° | **1.209°** | **1.494°** | **14.12** |
 
 ---
 

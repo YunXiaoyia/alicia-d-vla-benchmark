@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Generate per-model ('分比') comparison plots and side-by-side rollout GIFs for:
+"""Generate per-model ('分比' / Vertical Ablation) comparison plots and side-by-side rollout GIFs for all 5 policies:
 - `act/`
 - `smolvla/`
 - `pi0_5/`
+- `starvla/`
 - `turbovla/`
 """
 
 import glob
+import re
 import shutil
 from pathlib import Path
 
@@ -83,7 +85,6 @@ def plot_model_smooth_vs_no_smooth(
     t_no = np.arange(d_no["n_steps"]) / 30.0
     t_sm = np.arange(d_sm["n_steps"]) / 30.0
 
-    # Panels 0..5: Joints 1..6 trajectories (No-Smooth vs Smooth)
     joint_titles = [
         "Joint 1 (Base Yaw)",
         "Joint 2 (Shoulder Pitch)",
@@ -227,7 +228,6 @@ def plot_smolvla_horizon_ablation(out_png: Path):
     fig, axes = plt.subplots(1, 3, figsize=(18, 5.2), dpi=170)
     plt.subplots_adjust(wspace=0.25)
 
-    # Panel 1: Joint 2 (Shoulder) Trajectory across horizons
     ax1 = axes[0]
     for label, d, col in loaded:
         t = np.arange(d["n_steps"]) / 30.0
@@ -238,7 +238,6 @@ def plot_smolvla_horizon_ablation(out_png: Path):
     ax1.grid(True, linestyle="--", alpha=0.45)
     ax1.legend(fontsize=8.5, loc="best")
 
-    # Panel 2: Mean Step Delta ||Δa_t||_2 (rad)
     ax2 = axes[1]
     labels = [x[0] for x in loaded]
     l2_vals = [x[1]["l2_rad_mean"] for x in loaded]
@@ -253,7 +252,6 @@ def plot_smolvla_horizon_ablation(out_png: Path):
     for b in bars:
         ax2.text(b.get_x() + b.get_width() / 2, b.get_height() + 0.0003, f"{b.get_height():.4f}", ha="center", va="bottom", fontsize=8.5, fontweight="bold")
 
-    # Panel 3: Mean Jerk (°/step³)
     ax3 = axes[2]
     jerk_vals = [x[1]["mean_jerk"] for x in loaded]
     bars3 = ax3.bar(np.arange(len(labels)), jerk_vals, width=0.5, color=cols, edgecolor="#2d3436")
@@ -268,6 +266,100 @@ def plot_smolvla_horizon_ablation(out_png: Path):
 
     plt.suptitle("SmolVLA Action Execution Horizon (n=15, 20, 30) & Flow-Matching RTC Ablation on Real Hardware", fontsize=13.5, fontweight="bold", y=1.03)
     plt.savefig(out_png, bbox_inches="tight", dpi=170)
+    plt.close()
+    print(f"   Saved plot -> {out_png}")
+
+
+def parse_starvla_log(log_path: Path):
+    steps, losses = [], []
+    pat = re.compile(r"Step\s+(\d+)(?:/\d+)?\s+\|\s+action_dit_loss:\s+([\d.eE+-]+)")
+    with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            m = pat.search(line)
+            if m:
+                steps.append(int(m.group(1)))
+                losses.append(float(m.group(2)))
+    return np.array(steps), np.array(losses)
+
+
+def plot_starvla_3way_freeze_ablation(out_png: Path):
+    s_unf, l_unf = parse_starvla_log(BENCH_ROOT / "docs/train_starvla_unfrozen.log")
+    s_vit, l_vit = parse_starvla_log(BENCH_ROOT / "docs/train_starvla_freeze_vit.log")
+    s_qwen, l_qwen = parse_starvla_log(BENCH_ROOT / "docs/train_starvla_fixqwen.log")
+
+    def smooth(y, w=15):
+        if len(y) < w:
+            return y
+        return np.convolve(y, np.ones(w) / w, mode="valid")
+
+    fig, axes = plt.subplots(1, 3, figsize=(19, 5.5), dpi=175)
+    plt.subplots_adjust(wspace=0.25)
+
+    # Panel 1: DiT Flow-Matching Loss Convergence
+    ax1 = axes[0]
+    w = 15
+    ax1.plot(s_unf, l_unf, color="#d63031", alpha=0.18, linewidth=0.9)
+    ax1.plot(s_vit, l_vit, color="#0984e3", alpha=0.18, linewidth=0.9)
+    ax1.plot(s_qwen, l_qwen, color="#00b894", alpha=0.22, linewidth=0.9)
+
+    ax1.plot(s_unf[w - 1 :], smooth(l_unf, w), color="#d63031", linestyle="--", linewidth=2.2, label=f"Run A: Unfrozen VLM (20k: {l_unf[-1]:.4f}, 0% Real)")
+    ax1.plot(s_vit[w - 1 :], smooth(l_vit, w), color="#0984e3", linestyle="-.", linewidth=2.2, label=f"Run B: FreezeViT Only (10k: {l_vit[-1]:.4f}, Drift)")
+    ax1.plot(s_qwen[w - 1 :], smooth(l_qwen, w), color="#00b894", linestyle="-", linewidth=2.6, label=f"Run C: FixQwen Full VLM Freeze (10k: {l_qwen[-1]:.4f}, 100% Real)")
+    ax1.set_yscale("log")
+    ax1.set_title("StarVLA Action DiT Flow Loss Convergence (Log Scale)", fontsize=12, fontweight="bold")
+    ax1.set_xlabel("Training Steps (Batch Size = 16)", fontsize=10)
+    ax1.set_ylabel("Flow-Matching MSE Loss (Log Scale)", fontsize=10)
+    ax1.grid(True, which="both", linestyle="--", alpha=0.45)
+    ax1.legend(fontsize=8.3, loc="upper right", framealpha=0.95)
+
+    # Panel 2: Open-Loop 6-Joint MAE vs Real-Robot Generalization
+    ax2 = axes[1]
+    labels = ["Run A: Unfrozen VLM\n(2.26B Trainable\n20k Steps)", "Run B: FreezeViT\n(1.93B Trainable\n10k Steps)", "Run C: FixQwen\n(0.21B Trainable\n10k Steps)"]
+    openloop_maes = [0.422, 0.562, 0.639]
+    colors = ["#d63031", "#0984e3", "#00b894"]
+    x = np.arange(len(labels))
+    bars = ax2.bar(x, openloop_maes, width=0.45, color=colors, edgecolor="#2d3436", linewidth=1.2, alpha=0.88)
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(labels, fontsize=8.8, fontweight="bold")
+    ax2.set_ylabel("Open-Loop 6-Joint MAE (°) on Training Ep0", fontsize=10)
+    ax2.set_title("Open-Loop Memorization vs. Real-Robot Success", fontsize=12, fontweight="bold")
+    ax2.set_ylim(0, 0.85)
+    ax2.grid(True, axis="y", linestyle="--", alpha=0.45)
+    outcomes = [
+        "0.422° Open-Loop\n0% Real (VLM Overfit)",
+        "0.562° Open-Loop\nPartial (2B LLM Drift)",
+        "0.639° Open-Loop\n100% Real Success!",
+    ]
+    for bar, txt in zip(bars, outcomes):
+        ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.02, txt, ha="center", va="bottom", fontsize=8.3, fontweight="bold")
+
+    # Panel 3: Training Time & Efficiency on RTX 4090
+    ax3 = axes[2]
+    wall_mins = [171.0, 74.0, 44.0]
+    speeds = [1.95, 2.25, 3.79]
+    bars3 = ax3.bar(x, wall_mins, width=0.45, color=colors, edgecolor="#2d3436", linewidth=1.2, alpha=0.88)
+    ax3.set_xticks(x)
+    ax3.set_xticklabels(labels, fontsize=8.8, fontweight="bold")
+    ax3.set_ylabel("Total Training Wall-Clock Time (Minutes on RTX 4090)", fontsize=10)
+    ax3.set_title("Training Efficiency & Throughput (RTX 4090)", fontsize=12, fontweight="bold")
+    ax3.set_ylim(0, 215)
+    ax3.grid(True, axis="y", linestyle="--", alpha=0.45)
+    anns3 = [
+        f"171 min (1.95 it/s)\n18.4 GB VRAM",
+        f"74 min (2.25 it/s)\n15.8 GB VRAM",
+        f"44 min (3.79 it/s, 3.9× Faster)\n9.6 GB VRAM | Best!",
+    ]
+    for bar, txt in zip(bars3, anns3):
+        ax3.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 4.0, txt, ha="center", va="bottom", fontsize=8.2, fontweight="bold")
+
+    plt.suptitle(
+        "StarVLA (Qwen3.5-2B-VL + Flow-Matching DiT-B) — 3-Way VLM Freezing Ablation on Alicia-D",
+        fontsize=13.5,
+        fontweight="bold",
+        y=1.03,
+    )
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(out_png, bbox_inches="tight", dpi=175)
     plt.close()
     print(f"   Saved plot -> {out_png}")
 
@@ -319,7 +411,6 @@ def create_side_by_side_comparison_gif(
         t_sm_img = Image.fromarray(top_sm[i_sm]).resize((cell_w, cell_h), Image.Resampling.BILINEAR)
         w_sm_img = Image.fromarray(wrist_sm[i_sm]).resize((cell_w, cell_h), Image.Resampling.BILINEAR)
 
-        # 4 columns: [Unsmoothed Top | Unsmoothed Wrist || Smoothed Top | Smoothed Wrist]
         sep_w = 6
         total_w = cell_w * 4 + sep_w
         canvas = Image.new("RGB", (total_w, cell_h + banner_h), (24, 28, 36))
@@ -356,10 +447,10 @@ def create_side_by_side_comparison_gif(
 
 
 def main():
-    print("=== Generating Per-Model ('分比') Plots & Side-by-Side Comparison GIFs ===")
+    print("=== Generating Per-Model ('分比') Plots & Side-by-Side Comparison GIFs Across All 5 Models ===")
 
     # 1. ACT
-    print("\n--- [1/4] ACT (act/) ---")
+    print("\n--- [1/5] ACT (act/) ---")
     plot_model_smooth_vs_no_smooth(
         "ACT (50k, ResNet-18 + CVAE)",
         "eval_act_no_smooth",
@@ -374,14 +465,14 @@ def main():
         "Temporal Ensemble λ=0.01",
         BENCH_ROOT / "act/rollout_comparison_act.gif",
         step=10,
-        max_frames=710,
+        max_frames=700,
     )
     shutil.copy2(BENCH_ROOT / "policies/lerobot_adapters/train_act_4090.sh", BENCH_ROOT / "act/train_act_4090.sh")
     shutil.copy2(BENCH_ROOT / "scripts/eval_act_smooth.sh", BENCH_ROOT / "act/eval_act_smooth.sh")
     shutil.copy2(BENCH_ROOT / "scripts/eval_act_no_smooth.sh", BENCH_ROOT / "act/eval_act_no_smooth.sh")
 
     # 2. SmolVLA
-    print("\n--- [2/4] SmolVLA (smolvla/) ---")
+    print("\n--- [2/5] SmolVLA (smolvla/) ---")
     plot_model_smooth_vs_no_smooth(
         "SmolVLA (30k, SmolVLM2-500M + Flow Matching)",
         "eval_smolvla_no_smooth",
@@ -399,12 +490,9 @@ def main():
         step=8,
         max_frames=481,
     )
-    shutil.copy2(BENCH_ROOT / "policies/lerobot_adapters/train_smolvla_4090.sh", BENCH_ROOT / "smolvla/train_smolvla_4090.sh")
-    shutil.copy2(BENCH_ROOT / "scripts/eval_smolvla_smooth.sh", BENCH_ROOT / "smolvla/eval_smolvla_smooth.sh")
-    shutil.copy2(BENCH_ROOT / "scripts/eval_smolvla_no_smooth.sh", BENCH_ROOT / "smolvla/eval_smolvla_no_smooth.sh")
 
     # 3. pi0.5
-    print("\n--- [3/4] pi0.5 (pi0_5/) ---")
+    print("\n--- [3/5] pi0.5 (pi0_5/) ---")
     plot_model_smooth_vs_no_smooth(
         "π0.5 (Full 20k, PaliGemma-3B + Action Expert Flow Matching)",
         "eval_pi05_no_smooth",
@@ -421,41 +509,47 @@ def main():
         step=7,
         max_frames=448,
     )
-    shutil.copy2(BENCH_ROOT / "policies/lerobot_adapters/train_pi05_a800_full.sh", BENCH_ROOT / "pi0_5/train_pi05_a800_full.sh")
-    shutil.copy2(BENCH_ROOT / "policies/lerobot_adapters/train_pi05_4090_lora.sh", BENCH_ROOT / "pi0_5/train_pi05_4090_lora.sh")
-    shutil.copy2(BENCH_ROOT / "policies/lerobot_adapters/merge_pi05_lora.py", BENCH_ROOT / "pi0_5/merge_pi05_lora.py")
-    shutil.copy2(BENCH_ROOT / "scripts/eval_pi05_smooth.sh", BENCH_ROOT / "pi0_5/eval_pi05_smooth.sh")
-    shutil.copy2(BENCH_ROOT / "scripts/eval_pi05_no_smooth.sh", BENCH_ROOT / "pi0_5/eval_pi05_no_smooth.sh")
 
-    # 4. TurboVLA
-    print("\n--- [4/4] TurboVLA (turbovla/) ---")
+    # 4. StarVLA
+    print("\n--- [4/5] StarVLA (starvla/) ---")
+    plot_starvla_3way_freeze_ablation(BENCH_ROOT / "starvla/starvla_3way_freeze_ablation.png")
     plot_model_smooth_vs_no_smooth(
-        "TurboVLA (Frozen-DINOv3 8k, 1-NFE MeanFlow)",
-        "eval_turbovla_no_smooth",
-        "eval_turbovla_smooth",
+        "StarVLA (FixQwen 10k, Frozen Qwen3.5-2B-VL + Flow-Matching DiT-B)",
+        "eval_starvla_fixqwen_no_smooth",
+        "eval_starvla_fixqwen_smooth",
+        "Quintic C² Blender",
+        BENCH_ROOT / "starvla/starvla_smooth_vs_no_smooth.png",
+    )
+    create_side_by_side_comparison_gif(
+        "eval_starvla_fixqwen_no_smooth",
+        "eval_starvla_fixqwen_smooth",
+        "StarVLA (FixQwen 10k)",
+        "Quintic C2 Blender",
+        BENCH_ROOT / "starvla/rollout_comparison_starvla.gif",
+        step=8,
+        max_frames=499,
+    )
+
+    # 5. TurboVLA
+    print("\n--- [5/5] TurboVLA (turbovla/) ---")
+    plot_model_smooth_vs_no_smooth(
+        "TurboVLA (Warm-Full 12.5k, Frozen Real DINOv3 + 1-NFE MeanFlow)",
+        "eval_turbovla_warm_full_no_smooth",
+        "eval_turbovla_warm_full_smooth",
         "Quintic C² Blender",
         BENCH_ROOT / "turbovla/turbovla_smooth_vs_no_smooth.png",
     )
-    shutil.copy2(
-        BENCH_ROOT / "assets/benchmarks/turbovla_warmstart_vs_scratch.png",
-        BENCH_ROOT / "turbovla/turbovla_3way_transfer_ablation.png",
-    )
     create_side_by_side_comparison_gif(
-        "eval_turbovla_no_smooth",
-        "eval_turbovla_smooth",
-        "TurboVLA (Frozen-ViT 8k)",
+        "eval_turbovla_warm_full_no_smooth",
+        "eval_turbovla_warm_full_smooth",
+        "TurboVLA (Warm-Full 12.5k)",
         "Quintic C2 Blender",
         BENCH_ROOT / "turbovla/rollout_comparison_turbovla.gif",
-        step=8,
-        max_frames=400,
+        step=10,
+        max_frames=710,
     )
-    shutil.copy2(BENCH_ROOT / "scripts/train_turbovla_wipes_freeze_vit.sh", BENCH_ROOT / "turbovla/train_turbovla_wipes_freeze_vit.sh")
-    shutil.copy2(BENCH_ROOT / "scripts/eval_turbovla_smooth.sh", BENCH_ROOT / "turbovla/eval_turbovla_smooth.sh")
-    shutil.copy2(BENCH_ROOT / "scripts/eval_turbovla_no_smooth.sh", BENCH_ROOT / "turbovla/eval_turbovla_no_smooth.sh")
-    shutil.copy2(BENCH_ROOT / "scripts/eval_turbovla_scratch_smooth.sh", BENCH_ROOT / "turbovla/eval_turbovla_scratch_smooth.sh")
-    shutil.copy2(BENCH_ROOT / "scripts/eval_turbovla_scratch_no_smooth.sh", BENCH_ROOT / "turbovla/eval_turbovla_scratch_no_smooth.sh")
 
-    print("\nAll per-model ('分比') assets generated successfully!")
+    print("\nAll 5 per-model ('分比') assets generated successfully!")
 
 
 if __name__ == "__main__":

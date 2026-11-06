@@ -33,6 +33,7 @@ from collections import deque
 from dataclasses import dataclass, field
 import json
 import logging
+import math
 from pathlib import Path
 import shutil
 import sys
@@ -59,6 +60,7 @@ from lerobot.cameras.realsense.configuration_realsense import RealSenseCameraCon
 from lerobot.configs import parser  # noqa: E402
 from lerobot.datasets.lerobot_dataset import LeRobotDataset  # noqa: E402
 from lerobot.datasets.utils import hw_to_dataset_features  # noqa: E402
+from lerobot.policies.act.modeling_act import ACTTemporalEnsembler  # noqa: E402
 from lerobot.processor import make_default_processors  # noqa: E402
 from lerobot.robots import (  # noqa: F401, E402
     RobotConfig,
@@ -208,14 +210,32 @@ class TurboVLAAliciaPolicy(nn.Module):
         use_ema: bool = True,
         expected_image_size: int = 256,
         default_task: str = DEFAULT_WIPES_TASK,
+        temporal_ensemble_mode: str = "legacy",
     ) -> None:
         super().__init__()
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
         self.chunk_size = int(chunk_size)
+        if self.chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        if temporal_ensemble_mode not in {"legacy", "act"}:
+            raise ValueError("temporal_ensemble_mode must be 'legacy' or 'act'")
+        self.temporal_ensemble_mode = temporal_ensemble_mode
         self.n_action_steps = max(1, min(int(n_action_steps), self.chunk_size))
-        self.temporal_ensemble_coeff = (
-            None if temporal_ensemble_coeff in (None, 0.0) else float(temporal_ensemble_coeff)
-        )
+        self.temporal_ensembler = None
+        if self.temporal_ensemble_mode == "act":
+            self.temporal_ensemble_coeff = 0.01 if temporal_ensemble_coeff is None else float(temporal_ensemble_coeff)
+            if not math.isfinite(self.temporal_ensemble_coeff):
+                raise ValueError("ACT temporal_ensemble_coeff must be finite")
+            self.temporal_ensembler = ACTTemporalEnsembler(self.temporal_ensemble_coeff, self.chunk_size)
+            weights = self.temporal_ensembler.ensemble_weights
+            cumulative_weights = self.temporal_ensembler.ensemble_weights_cumsum
+            if not bool((weights > 0).all() and torch.isfinite(cumulative_weights).all()):
+                raise ValueError("ACT temporal_ensemble_coeff produces unstable weights for this chunk_size")
+            self.n_action_steps = 1
+        else:
+            self.temporal_ensemble_coeff = (
+                None if temporal_ensemble_coeff in (None, 0.0) else float(temporal_ensemble_coeff)
+            )
         self.expected_image_size = int(expected_image_size)
         self.default_task = str(default_task)
 
@@ -239,60 +259,7 @@ class TurboVLAAliciaPolicy(nn.Module):
             torch.tensor(stats_data["action"]["max"], dtype=torch.float32, device=self.device).view(1, 1, -1),
             persistent=False,
         )
-        self.register_buffer(
-            "proprio_mean",
-            torch.tensor(stats_data["proprio"]["mean"], dtype=torch.float32, device=self.device).view(1, -1),
-            persistent=False,
-        )
-        self.register_buffer(
-            "proprio_std",
-            torch.tensor(stats_data["proprio"]["std"], dtype=torch.float32, device=self.device).view(1, -1),
-            persistent=False,
-        )
-        self.register_buffer(
-            "img_mean",
-            torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32, device=self.device).view(1, 3, 1, 1),
-            persistent=False,
-        )
-        self.register_buffer(
-            "img_std",
-            torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32, device=self.device).view(1, 3, 1, 1),
-            persistent=False,
-        )
-
-        # Build TurboVLA architecture matching `train_wipes.py`
-        model_args = SimpleNamespace(
-            dinov3_path=str(dinov3_path),
-            bert_path=str(bert_path),
-            hidden_dim=256,
-            nheads=8,
-            dim_feedforward=2048,
-            max_text_len=256,
-            text_padding_length=21,
-            text_padding_length_by_instruction={},
-            vla_feature_enhancer_layers=6,
-            enhancer_inner_dim=1024,
-            text_dropout=0.0,
-            fusion_dropout=0.0,
-            fusion_droppath=0.1,
-            action_dim=7,
-            chunk_size=self.chunk_size,
-            state_dim=8,
-            num_state_tokens=2,
-            local_files_only=True,
-            freeze_vision_encoder=True,
-            freeze_text_encoder=True,
-            dinov3_precision="bf16_autocast",
-            num_views=2,
-            image_size=self.expected_image_size,
-            position_embedding="view",
-            encode_views_separately=True,
-            padding_strategy="key_padding_mask",
-        )
-        logger.info("Building TurboVLA model...")
-        self.model = build_turbovla(model_args)
-
-        # Load checkpoint (.pth)
+        # Load checkpoint (.pth) first so we can auto-detect architecture & normalization config
         logger.info(f"Loading TurboVLA checkpoint from {ckpt_path} (use_ema={use_ema})...")
         ckpt = torch.load(ckpt_path, map_location="cpu")
         if isinstance(ckpt, dict):
@@ -306,6 +273,7 @@ class TurboVLAAliciaPolicy(nn.Module):
                 state_dict = ckpt
                 ckpt_source = "raw_dict"
             global_step = ckpt.get("global_step", "unknown")
+            saved_args = ckpt.get("args", {}) if isinstance(ckpt.get("args"), dict) else {}
         else:
             raise TypeError(f"Unsupported checkpoint type: {type(ckpt)}")
 
@@ -314,6 +282,92 @@ class TurboVLAAliciaPolicy(nn.Module):
             if k.startswith("module."):
                 k = k[len("module.") :]
             cleaned_sd[k] = v
+
+        has_patch_pos = "patch_position_embedding" in cleaned_sd
+        self.state_dim = int(saved_args.get("state_dim", 8))
+        self.state_norm_mode = str(saved_args.get("state_norm_mode", "zscore")).lower()
+        text_pad_arg = saved_args.get("text_padding_length", 21)
+        text_padding_length = None if (text_pad_arg is not None and int(text_pad_arg) <= 0) else text_pad_arg
+
+        self.register_buffer(
+            "proprio_min",
+            torch.tensor(stats_data["proprio"]["min"][: self.state_dim], dtype=torch.float32, device=self.device).view(
+                1, -1
+            ),
+            persistent=False,
+        )
+        self.register_buffer(
+            "proprio_max",
+            torch.tensor(stats_data["proprio"]["max"][: self.state_dim], dtype=torch.float32, device=self.device).view(
+                1, -1
+            ),
+            persistent=False,
+        )
+        self.register_buffer(
+            "proprio_mean",
+            torch.tensor(stats_data["proprio"]["mean"][: self.state_dim], dtype=torch.float32, device=self.device).view(
+                1, -1
+            ),
+            persistent=False,
+        )
+        self.register_buffer(
+            "proprio_std",
+            torch.tensor(stats_data["proprio"]["std"][: self.state_dim], dtype=torch.float32, device=self.device).view(
+                1, -1
+            ),
+            persistent=False,
+        )
+        self.register_buffer(
+            "img_mean",
+            torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32, device=self.device).view(1, 3, 1, 1),
+            persistent=False,
+        )
+        self.register_buffer(
+            "img_std",
+            torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32, device=self.device).view(1, 3, 1, 1),
+            persistent=False,
+        )
+
+        padding_strategy = str(saved_args.get("padding_strategy", "key_padding_mask"))
+        model_args = SimpleNamespace(
+            dinov3_path=str(dinov3_path),
+            bert_path=str(bert_path),
+            hidden_dim=int(saved_args.get("hidden_dim", 256)),
+            nheads=int(saved_args.get("nheads", 8)),
+            dim_feedforward=int(saved_args.get("dim_feedforward", 2048)),
+            max_text_len=256,
+            text_padding_length=text_padding_length,
+            text_padding_length_by_instruction={},
+            zero_padded_text=(padding_strategy == "zero_fill"),
+            vla_feature_enhancer_layers=int(saved_args.get("vla_feature_enhancer_layers", 6)),
+            enhancer_inner_dim=int(saved_args.get("enhancer_inner_dim", 1024)),
+            text_dropout=0.0,
+            fusion_dropout=0.0,
+            fusion_droppath=0.1,
+            action_dim=int(saved_args.get("action_dim", 7)),
+            chunk_size=self.chunk_size,
+            state_dim=self.state_dim,
+            num_state_tokens=int(saved_args.get("num_state_tokens", 2)),
+            local_files_only=True,
+            freeze_vision_encoder=True,
+            freeze_text_encoder=True,
+            dinov3_precision="bf16_autocast",
+            num_views=2,
+            image_size=self.expected_image_size,
+            position_embedding=str(
+                saved_args.get("position_embedding", "learned_patch" if has_patch_pos else "view")
+            ),
+            encode_views_separately=bool(saved_args.get("encode_views_separately", not has_patch_pos)),
+            padding_strategy=padding_strategy,
+            residual_style=str(saved_args.get("residual_style", "normalized")),
+            attention_backend=str(saved_args.get("attention_backend", "manual")),
+            interaction_precision=str(saved_args.get("interaction_precision", "fp32")),
+        )
+        logger.info(
+            f"Building TurboVLA model (position_embedding={model_args.position_embedding}, "
+            f"state_dim={self.state_dim}, state_norm_mode={self.state_norm_mode})..."
+        )
+        self.model = build_turbovla(model_args)
 
         missing, unexpected = self.model.load_state_dict(cleaned_sd, strict=False)
         if missing or unexpected:
@@ -328,20 +382,27 @@ class TurboVLAAliciaPolicy(nn.Module):
         self.model.requires_grad_(False)
 
         self._action_queue: deque[torch.Tensor] = deque(maxlen=self.chunk_size)
-        # Full-horizon causal chunk smoother + Quintic C^2 boundary anchor blender:
-        # executes all `n_action_steps` (30) of each chunk so second-half grasp closure and lift
-        # are never truncated, while smoothing intra-chunk jitter and chunk-boundary jumps.
+        # Legacy mode retains chunk execution; ACT mode consumes one ensembled action per observation.
         self.replan_steps = self.n_action_steps
         self.blender = (
             RecedingHorizonTrajectoryBlender(chunk_size=self.chunk_size, action_dim=7)
-            if self.temporal_ensemble_coeff is not None
+            if self.temporal_ensemble_mode == "legacy" and self.temporal_ensemble_coeff is not None
             else None
         )
         self._step_counter: int = 0
+        logger.info(
+            "Action execution: mode=%s, query_interval=%d, chunk_size=%d, temporal_ensemble_coeff=%s",
+            self.temporal_ensemble_mode,
+            self.n_action_steps,
+            self.chunk_size,
+            self.temporal_ensemble_coeff,
+        )
 
     def reset(self) -> None:
-        """Reset action queue / trajectory blender buffer at the start of each episode."""
+        """Reset action selection history at the start of each episode."""
         self._action_queue.clear()
+        if self.temporal_ensembler is not None:
+            self.temporal_ensembler.reset()
         if self.blender is not None:
             self.blender.reset()
         self._step_counter = 0
@@ -371,17 +432,22 @@ class TurboVLAAliciaPolicy(nn.Module):
         dino_wrist = self._preprocess_image(batch["observation.images.wrist"])
         samples = {"dinov3": torch.stack([dino_top, dino_wrist], dim=1)}  # [B, 2, 3, 256, 256]
 
-        # State: [B, 7] -> pad 0.0 -> [B, 8] -> Z-score normalize
+        # State: support both 7D native and 8D padded, and both min_max [-1, 1] and Z-score normalization
         raw_state = batch["observation.state"].to(device=self.device, dtype=torch.float32)
         if raw_state.ndim == 1:
             raw_state = raw_state.unsqueeze(0)
-        if raw_state.shape[-1] == 7:
-            state_8d = F.pad(raw_state, (0, 1), value=0.0)
-        elif raw_state.shape[-1] == 8:
-            state_8d = raw_state
+        if self.state_dim == 8 and raw_state.shape[-1] == 7:
+            state_vec = F.pad(raw_state, (0, 1), value=0.0)
         else:
-            raise ValueError(f"Expected 7D or 8D observation.state, got shape {tuple(raw_state.shape)}")
-        norm_state = (state_8d - self.proprio_mean) / (self.proprio_std + 1e-8)
+            state_vec = raw_state[..., : self.state_dim]
+
+        if self.state_norm_mode == "min_max":
+            norm_state = 2.0 * (state_vec - self.proprio_min) / (self.proprio_max - self.proprio_min + 1e-8) - 1.0
+            norm_state = torch.clamp(norm_state, -1.0, 1.0)
+            if self.state_dim == 8:
+                norm_state[..., 7] = 0.0
+        else:
+            norm_state = (state_vec - self.proprio_mean) / (self.proprio_std + 1e-8)
 
         task = batch.get("task", self.default_task)
         if isinstance(task, (list, tuple)):
@@ -400,6 +466,11 @@ class TurboVLAAliciaPolicy(nn.Module):
     @torch.inference_mode()
     def select_action(self, batch: dict[str, Any]) -> torch.Tensor:
         """Return a single-step action `[1, 7]` for `record_loop`."""
+        if self.temporal_ensembler is not None:
+            chunk = self._predict_action_chunk(batch)
+            action = self.temporal_ensembler.update(chunk)
+            self._step_counter += 1
+            return action
         if self.blender is not None:
             need_replan = self.blender.remaining_steps() <= (self.chunk_size - self.replan_steps)
             if need_replan:
@@ -449,6 +520,10 @@ class TurboVLAEvalConfig:
     chunk_size: int = 30
     n_action_steps: int = 15
     temporal_ensemble_coeff: float | None = None
+    temporal_ensemble_mode: str = field(
+        default="legacy",
+        metadata={"help": "legacy: existing chunk/blender behavior; act: predict and ensemble every control step"},
+    )
 
     # Evaluation loop parameters
     task: str = DEFAULT_WIPES_TASK
@@ -492,6 +567,7 @@ def eval_turbovla(cfg: TurboVLAEvalConfig) -> None:
         chunk_size=cfg.chunk_size,
         n_action_steps=cfg.n_action_steps,
         temporal_ensemble_coeff=cfg.temporal_ensemble_coeff,
+        temporal_ensemble_mode=cfg.temporal_ensemble_mode,
         use_ema=cfg.use_ema,
         default_task=cfg.task,
     )
@@ -539,7 +615,8 @@ def eval_turbovla(cfg: TurboVLAEvalConfig) -> None:
 
     logger.info(
         f"Starting evaluation loop: task={cfg.task!r}, chunk_size={cfg.chunk_size}, "
-        f"n_action_steps={cfg.n_action_steps}, temporal_ensemble_coeff={cfg.temporal_ensemble_coeff}"
+        f"n_action_steps={policy.n_action_steps}, temporal_ensemble_mode={policy.temporal_ensemble_mode}, "
+        f"temporal_ensemble_coeff={policy.temporal_ensemble_coeff}"
     )
     recorded_episodes = 0
 
