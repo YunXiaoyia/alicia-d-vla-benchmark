@@ -60,7 +60,7 @@
 | :--- | :--- | :--- | :--- |
 | **[`act/`](./act/)** | **[`act/README.md`](./act/README.md)** | [`act/rollout_comparison_act.gif`](./act/rollout_comparison_act.gif) | 开环分块执行 (`n=30`) vs. 指数时序加权融合 ($\lambda=0.01$)：三阶 Jerk 降低 **92%** (`0.5212 -> 0.0408`)，最大单步跳变降低 **81%** (`12.98° -> 2.45°`) |
 | **[`smolvla/`](./smolvla/)** | **[`smolvla/README.md`](./smolvla/README.md)** | [`smolvla/rollout_comparison_smolvla.gif`](./smolvla/rollout_comparison_smolvla.gif) | 流匹配实时分块引导 (`RTC`) vs. 无平滑 + 不同开环执行视野 (`n_action_steps = 15 vs. 20 vs. 30`) 纵向消融 |
-| **[`pi0_5/`](./pi0_5/)** | **[`pi0_5/README.md`](./pi0_5/README.md)** | [`pi0_5/rollout_comparison_pi05.gif`](./pi0_5/rollout_comparison_pi05.gif) | `A800 全参数微调` vs. `4090 LoRA 零开销合并` + 流匹配 RTC 前缀引导（最大块边界跳变降低 **83%**：`7.71° -> 1.33°`） |
+| **[`pi0_5/`](./pi0_5/)** | **[`pi0_5/README.md`](./pi0_5/README.md)** | [`pi0_5/rollout_comparison_pi05.gif`](./pi0_5/rollout_comparison_pi05.gif) | **`A800 全量微调 (10k/20k: MAE 0.627° → 0.350°)` vs. `单卡 4090 LoRA 零开销合并 (10k/30k: MAE 1.845° → 1.255°, 9.75 GB 显存)`** + 流匹配 RTC 前缀引导（最大块边界跳变降低 **83%**：`7.71° -> 1.33°`） |
 | **[`starvla/`](./starvla/)** | **[`starvla/README.md`](./starvla/README.md)** | [`starvla/rollout_comparison_starvla.gif`](./starvla/rollout_comparison_starvla.gif) | **冻结视觉塔 (`FreezeViT`) vs. 全冻结多模态主干 (`FixQwen`)** 2×2 真机消融（训练提速 **1.7×**，显存降低 **39%**）+ 五次多项式 $C^2$ 平滑（Jerk 降低 **97%**） |
 | **[`turbovla/`](./turbovla/)** | **[`turbovla/README.md`](./turbovla/README.md)** | [`turbovla/rollout_comparison_turbovla.gif`](./turbovla/rollout_comparison_turbovla.gif) | **跨本体迁移与选择性热启动消融**（`Scratch` / `Sim-ViT` / `Frozen-ViT 8k` / `Warm-Body 12.5k` / `Warm-Full 12.5k`）+ 五次多项式 $C^2$ 平滑（Jerk 降低 **96%**） |
 
