@@ -1,0 +1,157 @@
+/home/adminroot/miniconda3/envs/lerobot/lib/python3.12/site-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+================================================================================
+TurboVLA Fine-tuning on Alicia-D Wipes Dataset
+Device: cuda, Chunk Size: 30, Batch Size: 64 (accum: 2)
+Steps: 20000, Head LR: 0.00015, DINO LR: 3.5e-05, EMA: 0.999
+================================================================================
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 17882.13it/s]
+[1mBertModel LOAD REPORT[0m from: /home/yunyi/Desktop/vla/models/bert-base-uncased
+Key                                        | Status     |  | 
+-------------------------------------------+------------+--+-
+cls.predictions.transform.dense.bias       | UNEXPECTED |  | 
+cls.predictions.bias                       | UNEXPECTED |  | 
+cls.seq_relationship.weight                | UNEXPECTED |  | 
+cls.seq_relationship.bias                  | UNEXPECTED |  | 
+cls.predictions.transform.LayerNorm.weight | UNEXPECTED |  | 
+cls.predictions.transform.LayerNorm.bias   | UNEXPECTED |  | 
+cls.predictions.transform.dense.weight     | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+Loading weights:   0%|          | 0/211 [00:00<?, ?it/s]Loading weights: 100%|██████████| 211/211 [00:00<00:00, 17246.38it/s]
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/yunyi/.netrc.
+wandb: Currently logged in as: 3021244100 (yunyi_) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run wwmhgdi8
+wandb: Tracking run with wandb version 0.28.1
+wandb: Run data is saved locally in /home/yunyi/Desktop/vla/TurboVLA/wandb/run-20261027_001039-wwmhgdi8
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run turbovla_wipes_b_scratch
+wandb: ⭐️ View project at https://wandb.ai/yunyi_/turbovla-wipes
+wandb: 🚀 View run at https://wandb.ai/yunyi_/turbovla-wipes/runs/wwmhgdi8
+[Warning] Pretrained checkpoint not found at . Training from scratch.
+[WandB] Active run: https://wandb.ai/yunyi_/turbovla-wipes/runs/wwmhgdi8
+`use_return_dict` is deprecated! Use `return_dict` instead!
+
+[Start] Beginning fine-tuning for 20000 steps on 24535 frames...
+
+Step 00200/20000 | Loss: 0.2096 | HeadLR: 6.93e-05 | GradNorm: 1.16 | Speed: 1.36 step/s
+Step 00400/20000 | Loss: 0.0821 | HeadLR: 1.23e-04 | GradNorm: 1.67 | Speed: 1.38 step/s
+Step 00600/20000 | Loss: 0.0596 | HeadLR: 1.50e-04 | GradNorm: 0.82 | Speed: 1.38 step/s
+Step 00800/20000 | Loss: 0.0469 | HeadLR: 1.50e-04 | GradNorm: 0.88 | Speed: 1.39 step/s
+Step 01000/20000 | Loss: 0.0405 | HeadLR: 1.50e-04 | GradNorm: 1.01 | Speed: 1.39 step/s
+Step 01200/20000 | Loss: 0.0364 | HeadLR: 1.50e-04 | GradNorm: 0.78 | Speed: 1.39 step/s
+Step 01400/20000 | Loss: 0.0328 | HeadLR: 1.49e-04 | GradNorm: 0.86 | Speed: 1.39 step/s
+Step 01600/20000 | Loss: 0.0308 | HeadLR: 1.49e-04 | GradNorm: 1.10 | Speed: 1.39 step/s
+Step 01800/20000 | Loss: 0.0286 | HeadLR: 1.48e-04 | GradNorm: 1.01 | Speed: 1.39 step/s
+Step 02000/20000 | Loss: 0.0269 | HeadLR: 1.48e-04 | GradNorm: 0.82 | Speed: 1.39 step/s
+Step 02200/20000 | Loss: 0.0258 | HeadLR: 1.47e-04 | GradNorm: 0.69 | Speed: 1.39 step/s
+Step 02400/20000 | Loss: 0.0246 | HeadLR: 1.47e-04 | GradNorm: 1.07 | Speed: 1.39 step/s
+Step 02600/20000 | Loss: 0.0236 | HeadLR: 1.46e-04 | GradNorm: 0.61 | Speed: 1.39 step/s
+Step 02800/20000 | Loss: 0.0225 | HeadLR: 1.45e-04 | GradNorm: 0.43 | Speed: 1.39 step/s
+Step 03000/20000 | Loss: 0.0219 | HeadLR: 1.44e-04 | GradNorm: 0.79 | Speed: 1.39 step/s
+Step 03200/20000 | Loss: 0.0212 | HeadLR: 1.43e-04 | GradNorm: 0.59 | Speed: 1.39 step/s
+Step 03400/20000 | Loss: 0.0199 | HeadLR: 1.42e-04 | GradNorm: 0.67 | Speed: 1.39 step/s
+Step 03600/20000 | Loss: 0.0190 | HeadLR: 1.41e-04 | GradNorm: 0.58 | Speed: 1.39 step/s
+Step 03800/20000 | Loss: 0.0181 | HeadLR: 1.40e-04 | GradNorm: 0.65 | Speed: 1.39 step/s
+Step 04000/20000 | Loss: 0.0177 | HeadLR: 1.39e-04 | GradNorm: 0.42 | Speed: 1.39 step/s
+
+>>> [Checkpoint Saved (with EMA)] -> outputs/turbovla_wipes_b_scratch/turbovla_wipes_scratch_step_04000.pth
+
+Step 04200/20000 | Loss: 0.0171 | HeadLR: 1.37e-04 | GradNorm: 0.71 | Speed: 1.39 step/s
+Step 04400/20000 | Loss: 0.0166 | HeadLR: 1.36e-04 | GradNorm: 0.55 | Speed: 1.39 step/s
+Step 04600/20000 | Loss: 0.0161 | HeadLR: 1.35e-04 | GradNorm: 0.50 | Speed: 1.39 step/s
+Step 04800/20000 | Loss: 0.0157 | HeadLR: 1.33e-04 | GradNorm: 0.73 | Speed: 1.39 step/s
+Step 05000/20000 | Loss: 0.0152 | HeadLR: 1.32e-04 | GradNorm: 0.57 | Speed: 1.39 step/s
+Step 05200/20000 | Loss: 0.0148 | HeadLR: 1.30e-04 | GradNorm: 0.59 | Speed: 1.39 step/s
+Step 05400/20000 | Loss: 0.0145 | HeadLR: 1.28e-04 | GradNorm: 0.58 | Speed: 1.39 step/s
+Step 05600/20000 | Loss: 0.0139 | HeadLR: 1.27e-04 | GradNorm: 0.29 | Speed: 1.39 step/s
+Step 05800/20000 | Loss: 0.0137 | HeadLR: 1.25e-04 | GradNorm: 0.32 | Speed: 1.39 step/s
+Step 06000/20000 | Loss: 0.0135 | HeadLR: 1.23e-04 | GradNorm: 0.68 | Speed: 1.39 step/s
+Step 06200/20000 | Loss: 0.0131 | HeadLR: 1.21e-04 | GradNorm: 0.75 | Speed: 1.39 step/s
+Step 06400/20000 | Loss: 0.0129 | HeadLR: 1.19e-04 | GradNorm: 0.46 | Speed: 1.39 step/s
+Step 06600/20000 | Loss: 0.0127 | HeadLR: 1.17e-04 | GradNorm: 0.52 | Speed: 1.39 step/s
+Step 06800/20000 | Loss: 0.0124 | HeadLR: 1.15e-04 | GradNorm: 0.42 | Speed: 1.39 step/s
+Step 07000/20000 | Loss: 0.0122 | HeadLR: 1.13e-04 | GradNorm: 0.45 | Speed: 1.39 step/s
+Step 07200/20000 | Loss: 0.0120 | HeadLR: 1.11e-04 | GradNorm: 0.47 | Speed: 1.39 step/s
+Step 07400/20000 | Loss: 0.0117 | HeadLR: 1.09e-04 | GradNorm: 0.59 | Speed: 1.39 step/s
+Step 07600/20000 | Loss: 0.0115 | HeadLR: 1.07e-04 | GradNorm: 0.37 | Speed: 1.39 step/s
+Step 07800/20000 | Loss: 0.0112 | HeadLR: 1.05e-04 | GradNorm: 0.39 | Speed: 1.39 step/s
+Step 08000/20000 | Loss: 0.0112 | HeadLR: 1.03e-04 | GradNorm: 0.64 | Speed: 1.39 step/s
+
+>>> [Checkpoint Saved (with EMA)] -> outputs/turbovla_wipes_b_scratch/turbovla_wipes_scratch_step_08000.pth
+
+Step 08200/20000 | Loss: 0.0109 | HeadLR: 1.01e-04 | GradNorm: 0.61 | Speed: 1.39 step/s
+Step 08400/20000 | Loss: 0.0107 | HeadLR: 9.83e-05 | GradNorm: 0.37 | Speed: 1.39 step/s
+Step 08600/20000 | Loss: 0.0105 | HeadLR: 9.61e-05 | GradNorm: 0.25 | Speed: 1.39 step/s
+Step 08800/20000 | Loss: 0.0104 | HeadLR: 9.38e-05 | GradNorm: 0.50 | Speed: 1.39 step/s
+Step 09000/20000 | Loss: 0.0103 | HeadLR: 9.15e-05 | GradNorm: 0.37 | Speed: 1.39 step/s
+Step 09200/20000 | Loss: 0.0100 | HeadLR: 8.92e-05 | GradNorm: 0.45 | Speed: 1.39 step/s
+Step 09400/20000 | Loss: 0.0098 | HeadLR: 8.69e-05 | GradNorm: 0.45 | Speed: 1.39 step/s
+Step 09600/20000 | Loss: 0.0096 | HeadLR: 8.45e-05 | GradNorm: 0.24 | Speed: 1.39 step/s
+Step 09800/20000 | Loss: 0.0095 | HeadLR: 8.22e-05 | GradNorm: 0.49 | Speed: 1.39 step/s
+Step 10000/20000 | Loss: 0.0093 | HeadLR: 7.98e-05 | GradNorm: 0.32 | Speed: 1.39 step/s
+Step 10200/20000 | Loss: 0.0092 | HeadLR: 7.75e-05 | GradNorm: 0.26 | Speed: 1.39 step/s
+Step 10400/20000 | Loss: 0.0091 | HeadLR: 7.51e-05 | GradNorm: 0.48 | Speed: 1.39 step/s
+Step 10600/20000 | Loss: 0.0089 | HeadLR: 7.28e-05 | GradNorm: 0.36 | Speed: 1.39 step/s
+Step 10800/20000 | Loss: 0.0087 | HeadLR: 7.04e-05 | GradNorm: 0.35 | Speed: 1.39 step/s
+Step 11000/20000 | Loss: 0.0087 | HeadLR: 6.81e-05 | GradNorm: 0.42 | Speed: 1.39 step/s
+Step 11200/20000 | Loss: 0.0086 | HeadLR: 6.57e-05 | GradNorm: 0.43 | Speed: 1.39 step/s
+Step 11400/20000 | Loss: 0.0084 | HeadLR: 6.34e-05 | GradNorm: 0.49 | Speed: 1.39 step/s
+Step 11600/20000 | Loss: 0.0082 | HeadLR: 6.11e-05 | GradNorm: 0.47 | Speed: 1.39 step/s
+Step 11800/20000 | Loss: 0.0081 | HeadLR: 5.88e-05 | GradNorm: 0.59 | Speed: 1.39 step/s
+Step 12000/20000 | Loss: 0.0080 | HeadLR: 5.65e-05 | GradNorm: 0.27 | Speed: 1.39 step/s
+
+>>> [Checkpoint Saved (with EMA)] -> outputs/turbovla_wipes_b_scratch/turbovla_wipes_scratch_step_12000.pth
+
+Step 12200/20000 | Loss: 0.0079 | HeadLR: 5.43e-05 | GradNorm: 0.26 | Speed: 1.39 step/s
+Step 12400/20000 | Loss: 0.0078 | HeadLR: 5.20e-05 | GradNorm: 0.28 | Speed: 1.39 step/s
+Step 12600/20000 | Loss: 0.0077 | HeadLR: 4.98e-05 | GradNorm: 0.28 | Speed: 1.39 step/s
+Step 12800/20000 | Loss: 0.0076 | HeadLR: 4.77e-05 | GradNorm: 0.31 | Speed: 1.39 step/s
+Step 13000/20000 | Loss: 0.0075 | HeadLR: 4.55e-05 | GradNorm: 0.39 | Speed: 1.39 step/s
+Step 13200/20000 | Loss: 0.0074 | HeadLR: 4.34e-05 | GradNorm: 0.26 | Speed: 1.39 step/s
+Step 13400/20000 | Loss: 0.0073 | HeadLR: 4.13e-05 | GradNorm: 0.29 | Speed: 1.39 step/s
+Step 13600/20000 | Loss: 0.0072 | HeadLR: 3.93e-05 | GradNorm: 0.24 | Speed: 1.39 step/s
+Step 13800/20000 | Loss: 0.0071 | HeadLR: 3.73e-05 | GradNorm: 0.30 | Speed: 1.39 step/s
+Step 14000/20000 | Loss: 0.0071 | HeadLR: 3.53e-05 | GradNorm: 0.39 | Speed: 1.39 step/s
+Step 14200/20000 | Loss: 0.0070 | HeadLR: 3.34e-05 | GradNorm: 0.24 | Speed: 1.39 step/s
+Step 14400/20000 | Loss: 0.0069 | HeadLR: 3.15e-05 | GradNorm: 0.38 | Speed: 1.39 step/s
+Step 14600/20000 | Loss: 0.0068 | HeadLR: 2.97e-05 | GradNorm: 0.22 | Speed: 1.39 step/s
+Step 14800/20000 | Loss: 0.0068 | HeadLR: 2.79e-05 | GradNorm: 0.26 | Speed: 1.39 step/s
+Step 15000/20000 | Loss: 0.0067 | HeadLR: 2.62e-05 | GradNorm: 0.25 | Speed: 1.39 step/s
+Step 15200/20000 | Loss: 0.0066 | HeadLR: 2.45e-05 | GradNorm: 0.17 | Speed: 1.39 step/s
+Step 15400/20000 | Loss: 0.0066 | HeadLR: 2.29e-05 | GradNorm: 0.23 | Speed: 1.39 step/s
+Step 15600/20000 | Loss: 0.0065 | HeadLR: 2.14e-05 | GradNorm: 0.25 | Speed: 1.39 step/s
+Step 15800/20000 | Loss: 0.0064 | HeadLR: 1.99e-05 | GradNorm: 0.25 | Speed: 1.39 step/s
+Step 16000/20000 | Loss: 0.0064 | HeadLR: 1.84e-05 | GradNorm: 0.33 | Speed: 1.39 step/s
+
+>>> [Checkpoint Saved (with EMA)] -> outputs/turbovla_wipes_b_scratch/turbovla_wipes_scratch_step_16000.pth
+
+Step 16200/20000 | Loss: 0.0064 | HeadLR: 1.70e-05 | GradNorm: 0.18 | Speed: 1.39 step/s
+Step 16400/20000 | Loss: 0.0063 | HeadLR: 1.57e-05 | GradNorm: 0.29 | Speed: 1.39 step/s
+Step 16600/20000 | Loss: 0.0063 | HeadLR: 1.44e-05 | GradNorm: 0.16 | Speed: 1.39 step/s
+Step 16800/20000 | Loss: 0.0062 | HeadLR: 1.33e-05 | GradNorm: 0.19 | Speed: 1.39 step/s
+Step 17000/20000 | Loss: 0.0062 | HeadLR: 1.21e-05 | GradNorm: 0.23 | Speed: 1.39 step/s
+Step 17200/20000 | Loss: 0.0062 | HeadLR: 1.11e-05 | GradNorm: 0.29 | Speed: 1.39 step/s
+Step 17400/20000 | Loss: 0.0061 | HeadLR: 1.01e-05 | GradNorm: 0.17 | Speed: 1.39 step/s
+Step 17600/20000 | Loss: 0.0061 | HeadLR: 9.15e-06 | GradNorm: 0.17 | Speed: 1.39 step/s
+Step 17800/20000 | Loss: 0.0061 | HeadLR: 8.30e-06 | GradNorm: 0.11 | Speed: 1.39 step/s
+Step 18000/20000 | Loss: 0.0061 | HeadLR: 7.51e-06 | GradNorm: 0.13 | Speed: 1.39 step/s
+Step 18200/20000 | Loss: 0.0060 | HeadLR: 6.80e-06 | GradNorm: 0.16 | Speed: 1.39 step/s
+Step 18400/20000 | Loss: 0.0060 | HeadLR: 6.17e-06 | GradNorm: 0.13 | Speed: 1.39 step/s
+Step 18600/20000 | Loss: 0.0060 | HeadLR: 5.60e-06 | GradNorm: 0.20 | Speed: 1.39 step/s
+Step 18800/20000 | Loss: 0.0060 | HeadLR: 5.11e-06 | GradNorm: 0.10 | Speed: 1.39 step/s
+Step 19000/20000 | Loss: 0.0060 | HeadLR: 4.70e-06 | GradNorm: 0.12 | Speed: 1.39 step/s
+Step 19200/20000 | Loss: 0.0060 | HeadLR: 4.36e-06 | GradNorm: 0.15 | Speed: 1.39 step/s
+Step 19400/20000 | Loss: 0.0060 | HeadLR: 4.09e-06 | GradNorm: 0.18 | Speed: 1.39 step/s
+Step 19600/20000 | Loss: 0.0059 | HeadLR: 3.90e-06 | GradNorm: 0.12 | Speed: 1.39 step/s
+Step 19800/20000 | Loss: 0.0059 | HeadLR: 3.79e-06 | GradNorm: 0.14 | Speed: 1.39 step/s
+Step 20000/20000 | Loss: 0.0059 | HeadLR: 3.75e-06 | GradNorm: 0.12 | Speed: 1.39 step/s
+
+>>> [Checkpoint Saved (with EMA)] -> outputs/turbovla_wipes_b_scratch/turbovla_wipes_scratch_step_20000.pth
+
+
+[Completed] Fine-tuning finished! Total time: 239.82 min.
+[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33mturbovla_wipes_b_scratch[0m at: [34mhttps://wandb.ai/yunyi_/turbovla-wipes/runs/wwmhgdi8[0m
+[1;34mwandb[0m: Find logs at: [1;35mwandb/run-20261027_001039-wwmhgdi8/logs[0m
